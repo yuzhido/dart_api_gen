@@ -1,0 +1,16 @@
+# The issues identified by the analyzer are surfaced in the UI of Dart-enabled
+# IDEs (https://dart.dev/tools#ides-and-editors). The analyzer can also be
+# invoked from the command line by running `flutter analyze`.
+include: package:flutter_lints/flutter.yaml
+linter:
+  rules:
+    # 开启「推荐 const 构造函数」规则（默认开启）
+    prefer_const_constructors: true
+    # 开启「推荐 const 字面量」（进一步优化）
+    prefer_const_literals_to_create_immutables: true
+    # 可选：关闭某个规则（比如不想提示 const）
+    # prefer_const_constructors: false
+    avoid_print: true
+
+# Additional information about this file can be found at
+# https://dart.dev/guides/language/analysis-options

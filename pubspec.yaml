@@ -1,0 +1,20 @@
+name: dart_api_gen
+description: "A code generation tool that generates Dart API code from Swagger/OpenAPI JSON."
+version: 1.0.0
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  http: ^1.2.0
+  path: ^1.9.0
+  args: ^2.5.0
+  yaml: ^3.1.0
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.24.0
+  flutter_lints: ^6.0.0
+
+executables:
+  dart_api_gen:
