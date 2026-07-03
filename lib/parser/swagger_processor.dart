@@ -10,6 +10,10 @@ library;
 
 import 'dart:convert';
 
+import '../constants/swagger_constants.dart';
+import '../utils/ref_utils.dart';
+import '../utils/media_type_utils.dart';
+
 class SwaggerProcessor {
   /// 处理原始 Swagger JSON，返回处理后的 processSwagger 数据结构
   Map<String, dynamic> process(Map<String, dynamic> swaggerDoc) {
@@ -38,7 +42,7 @@ class SwaggerProcessor {
     final typeUsageMap = <String, Set<String>>{};
     final tagMap = <String, List<Map<String, dynamic>>>{};
 
-    const methods = ['get', 'post', 'put', 'delete', 'patch'];
+    const methods = httpMethods;
 
     for (final pathEntry in paths.entries) {
       final apiPath = pathEntry.key;
@@ -100,13 +104,13 @@ class SwaggerProcessor {
         // 检查 requestBody 是否为数组类型或简单类型（需要提升为 typedef）
         final rawRb = operation['requestBody'] as Map<String, dynamic>?;
         final rawRbContent = rawRb?['content'] as Map<String, dynamic>?;
-        final rawRbSchema = rawRbContent != null ? (_selectMediaType(rawRbContent)?['schema'] as Map<String, dynamic>?) : null;
+        final rawRbSchema = rawRbContent != null ? (selectMediaType(rawRbContent)?['schema'] as Map<String, dynamic>?) : null;
         final isArrayBody = rawRbSchema != null && (rawRbSchema['type'] == 'array' || _isSimpleTypeSchema(rawRbSchema));
 
         // 简单类型 body 提升到 typesInfo 作为 typedef
         if (rawRbSchema != null && _isSimpleTypeSchema(rawRbSchema) && processedRequestBody != null) {
           final checkContent = processedRequestBody['content'] as Map<String, dynamic>?;
-          final checkSchema = checkContent != null ? (_selectMediaType(checkContent)?['schema'] as Map<String, dynamic>?) : null;
+          final checkSchema = checkContent != null ? (selectMediaType(checkContent)?['schema'] as Map<String, dynamic>?) : null;
           if (checkSchema != null && !checkSchema.containsKey('\$ref')) {
             final schemaName = '${_generateInlineSchemaName(apiPath)}${needsSuffix ? 'Body' : ''}';
             typesInfo[schemaName] = {
@@ -116,9 +120,11 @@ class SwaggerProcessor {
               'tags': [primaryTag],
             };
             _recordTypeUsage(schemaName, primaryTag, typeUsageMap);
-            final refPath = '#/components/schemas/$schemaName';
+            final refPath = '$refPathPrefix$schemaName';
             processedRequestBody['content'] = {
-              'application/json': {'schema': {'\$ref': refPath}},
+              'application/json': {
+                'schema': {'\$ref': refPath},
+              },
             };
           }
         }
@@ -212,7 +218,7 @@ class SwaggerProcessor {
     if (rb == null) return;
     final content = rb['content'] as Map<String, dynamic>?;
     if (content == null) return;
-    final mediaType = _selectMediaType(content);
+    final mediaType = selectMediaType(content);
     if (mediaType == null) return;
     final schema = mediaType['schema'] as Map<String, dynamic>?;
     if (schema == null) return;
@@ -226,7 +232,7 @@ class SwaggerProcessor {
     if (resp200 == null) return;
     final content = resp200['content'] as Map<String, dynamic>?;
     if (content == null) return;
-    final mediaType = _selectMediaType(content);
+    final mediaType = selectMediaType(content);
     if (mediaType == null) return;
     final schema = mediaType['schema'] as Map<String, dynamic>?;
     if (schema == null) return;
@@ -342,13 +348,13 @@ class SwaggerProcessor {
       'description': '',
       'content': {
         'text/plain': {
-          'schema': {'\$ref': '#/components/schemas/$schemaName'},
+          'schema': {'\$ref': '$refPathPrefix$schemaName'},
         },
         'application/json': {
-          'schema': {'\$ref': '#/components/schemas/$schemaName'},
+          'schema': {'\$ref': '$refPathPrefix$schemaName'},
         },
         'text/json': {
-          'schema': {'\$ref': '#/components/schemas/$schemaName'},
+          'schema': {'\$ref': '$refPathPrefix$schemaName'},
         },
       },
     };
@@ -382,7 +388,7 @@ class SwaggerProcessor {
     }
 
     // 简单类型 body（integer/string/boolean/number）不提升到 typesInfo，保持原始结构
-    final firstMediaType = isMultipart ? content['multipart/form-data'] as Map<String, dynamic>? : _selectMediaType(content);
+    final firstMediaType = isMultipart ? content['multipart/form-data'] as Map<String, dynamic>? : selectMediaType(content);
     final schema = firstMediaType?['schema'] as Map<String, dynamic>?;
     if (schema != null && _isSimpleTypeSchema(schema)) {
       // 保留原始 body 结构，controller_gen 会通过 TypeMapper 映射为简单 Dart 类型
@@ -402,7 +408,7 @@ class SwaggerProcessor {
       _recordTypeUsage(schemaName, tag, typeUsageMap);
     }
 
-    final refPath = '#/components/schemas/$schemaName';
+    final refPath = '$refPathPrefix$schemaName';
     if (isMultipart) {
       return {
         'description': requestBody['description'] as String? ?? '',
@@ -441,7 +447,7 @@ class SwaggerProcessor {
         'description': description,
         'content': {
           'multipart/form-data': {
-            'schema': {'\$ref': '#/components/schemas/$schemaName'},
+            'schema': {'\$ref': '$refPathPrefix$schemaName'},
           },
         },
       };
@@ -462,13 +468,13 @@ class SwaggerProcessor {
       'description': description,
       'content': {
         'text/plain': {
-          'schema': {'\$ref': '#/components/schemas/$schemaName'},
+          'schema': {'\$ref': '$refPathPrefix$schemaName'},
         },
         'application/json': {
-          'schema': {'\$ref': '#/components/schemas/$schemaName'},
+          'schema': {'\$ref': '$refPathPrefix$schemaName'},
         },
         'text/json': {
-          'schema': {'\$ref': '#/components/schemas/$schemaName'},
+          'schema': {'\$ref': '$refPathPrefix$schemaName'},
         },
       },
     };
@@ -615,10 +621,7 @@ class SwaggerProcessor {
 
   // ─── 工具方法 ────────────────────────────────────────────────
 
-  String _extractSchemaName(String ref) {
-    if (ref.isEmpty) return '';
-    return ref.split('/').last;
-  }
+  String _extractSchemaName(String ref) => extractSchemaName(ref);
 
   /// 从 API 路径生成内联 schema 名称（取最后两段转 PascalCase）
   String _generateInlineSchemaName(String apiPath) {
@@ -636,21 +639,6 @@ class SwaggerProcessor {
               .join('');
         })
         .join('');
-  }
-
-  Map<String, dynamic>? _selectMediaType(Map<String, dynamic> content) {
-    final json = content['application/json'] as Map<String, dynamic>?;
-    if (json != null) return json;
-    final jsonPatch = content['application/json-patch+json'] as Map<String, dynamic>?;
-    if (jsonPatch != null) return jsonPatch;
-    final textJson = content['text/json'] as Map<String, dynamic>?;
-    if (textJson != null) return textJson;
-    // 匹配 application/*+json
-    for (final entry in content.entries) {
-      if (entry.key.contains('json')) return entry.value as Map<String, dynamic>?;
-    }
-    if (content.isNotEmpty) return content.values.first as Map<String, dynamic>?;
-    return null;
   }
 
   /// 判断 schema 是否为简单类型（非对象、非数组、无 properties、无 $ref）

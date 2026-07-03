@@ -1,6 +1,8 @@
 /// Swagger type → Dart type 映射器
 library;
 
+import 'ref_utils.dart';
+
 class TypeMapper {
   final Map<String, Map<String, dynamic>> schemas;
 
@@ -11,7 +13,7 @@ class TypeMapper {
     // 处理 $ref
     if (schema.containsKey('\$ref')) {
       final ref = schema['\$ref'] as String;
-      final refName = ref.split('/').last;
+      final refName = extractSchemaName(ref);
 
       // JToken 自引用降级为 dynamic（避免编译错误）
       if (refName == 'JToken') {
@@ -20,9 +22,9 @@ class TypeMapper {
 
       // 判断是否为枚举类型
       if (_isEnumSchema(refName)) {
-        return refName.endsWith('Enum') ? refName : '${refName}Enum';
+        return ensureEnumSuffix(refName);
       }
-      return refName.endsWith('Dto') ? refName : '${refName}Dto';
+      return ensureDtoSuffix(refName);
     }
 
     // 处理 array
@@ -32,7 +34,7 @@ class TypeMapper {
         // JToken 数组项降级
         if (items.containsKey('\$ref')) {
           final itemRef = items['\$ref'] as String;
-          final itemRefName = itemRef.split('/').last;
+          final itemRefName = extractSchemaName(itemRef);
           if (itemRefName == 'JToken') {
             return 'List<dynamic>';
           }
@@ -82,26 +84,5 @@ class TypeMapper {
     final schema = schemas[schemaName];
     if (schema == null) return false;
     return schema.containsKey('enum');
-  }
-}
-
-/// 字段信息
-class FieldInfo {
-  final String name;
-  final String type;
-  final bool isRequired;
-  final String description;
-  final String jsonName;
-
-  FieldInfo({required this.name, required this.type, required this.isRequired, required this.description, required this.jsonName});
-
-  /// 是否为枚举类型字段
-  bool get isEnum => type.endsWith('Enum');
-
-  /// 获取引用的枚举 schema 名 (去掉末尾 Enum 后缀)
-  String? get enumSchemaName {
-    if (!isEnum) return null;
-    if (type.endsWith('Enum')) return type.substring(0, type.length - 4);
-    return type;
   }
 }

@@ -6,8 +6,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import '../utils/naming.dart';
-import '../utils/type_mapper.dart';
-import '../generator/types_gen.dart';
+import '../utils/ref_utils.dart';
 
 // ─── 领域模型 ─────────────────────────────────────────────────
 
@@ -53,19 +52,17 @@ class ProcessedApi {
   final Map<String, dynamic>? responses;
   final bool isArrayBody;
 
-  ProcessedApi({required this.apiPath, required this.method, this.summary = '', this.operationId = '', this.xArea, this.parameters, this.requestBody, this.responses, this.isArrayBody = false});
-
-  // ─── 适配 EndpointInfo 的属性 ───
-
-  /// 提取 query 参数列表（从处理后的 parameters 结构中）
-  List<_ParamData> get queryParams {
-    if (parameters == null) return [];
-    final content = parameters!['content'] as Map<String, dynamic>?;
-    if (content == null) return [];
-    // 处理后的 parameters 是 $ref 指向 typesInfo 中的 schema
-    // 需要返回空列表（controller 会使用 $ref 名称）
-    return [];
-  }
+  ProcessedApi({
+    required this.apiPath,
+    required this.method,
+    this.summary = '',
+    this.operationId = '',
+    this.xArea,
+    this.parameters,
+    this.requestBody,
+    this.responses,
+    this.isArrayBody = false,
+  });
 
   /// 获取 parameters 的 $ref schema 名称
   String? get parametersRef {
@@ -76,7 +73,7 @@ class ProcessedApi {
     for (final mt in content.values) {
       final schema = (mt as Map<String, dynamic>)['schema'] as Map<String, dynamic>?;
       final ref = schema?['\$ref'] as String?;
-      if (ref != null) return ref.split('/').last;
+      if (ref != null) return extractSchemaName(ref);
     }
     return null;
   }
@@ -89,7 +86,7 @@ class ProcessedApi {
     for (final mt in content.values) {
       final schema = (mt as Map<String, dynamic>)['schema'] as Map<String, dynamic>?;
       final ref = schema?['\$ref'] as String?;
-      if (ref != null) return ref.split('/').last;
+      if (ref != null) return extractSchemaName(ref);
     }
     return null;
   }
@@ -111,23 +108,16 @@ class ProcessedApi {
     if (jsonContent != null) {
       final schema = jsonContent['schema'] as Map<String, dynamic>?;
       final ref = schema?['\$ref'] as String?;
-      if (ref != null) return ref.split('/').last;
+      if (ref != null) return extractSchemaName(ref);
     }
     // 尝试第一个 content type
     for (final mt in content.values) {
       final schema = (mt as Map<String, dynamic>)['schema'] as Map<String, dynamic>?;
       final ref = schema?['\$ref'] as String?;
-      if (ref != null) return ref.split('/').last;
+      if (ref != null) return extractSchemaName(ref);
     }
     return null;
   }
-}
-
-/// 参数数据（内部用）
-class _ParamData {
-  final String name;
-  final String type;
-  _ParamData({required this.name, required this.type});
 }
 
 /// 处理后的类型信息
@@ -208,9 +198,6 @@ class ProcessedSwaggerLoader {
   Map<String, ProcessedTypeInfo> get typesInfo => _typesInfo;
   Map<String, Map<String, dynamic>> get schemas => _schemas;
 
-  /// 用于 TypeMapper 构造的 schemas Map
-  Map<String, Map<String, dynamic>> get schemasForTypeMapper => _schemas;
-
   /// tag 描述映射
   Map<String, String> get tagDescriptions {
     final result = <String, String>{};
@@ -258,25 +245,6 @@ class ProcessedSwaggerLoader {
     for (final entry in _apiEntries) {
       final area = (entry.xArea ?? 'common').toLowerCase();
       result[entry.tagName] = ControllerLocation(area: area, fileName: tagToFileName(entry.tagName));
-    }
-    return result;
-  }
-
-  /// 收集 inline DTOs（从 apiPath 的 parameters/requestBody）
-  /// 在 processSwagger.json 中，内联 schema 已被提升到 typesInfo，
-  /// 但 controller 生成器仍需知道参数签名结构
-  Map<String, List<InlineDtoInfo>> collectInlineDtos(TypeMapper typeMapper) {
-    final result = <String, List<InlineDtoInfo>>{};
-
-    for (final tagEntry in _apiEntries) {
-      final tag = tagEntry.tagName;
-      // Inline DTOs 已在 processSwagger.json 的 typesInfo 中
-      // 无需额外收集
-      final dtos = <InlineDtoInfo>[];
-
-      if (dtos.isNotEmpty) {
-        result[tag] = dtos;
-      }
     }
     return result;
   }

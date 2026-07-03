@@ -4,6 +4,8 @@ library;
 import '../parser/processed_swagger_loader.dart';
 import '../utils/naming.dart';
 import '../utils/type_mapper.dart';
+import '../utils/ref_utils.dart';
+import '../utils/header_utils.dart';
 
 class ControllerGenerator {
   final TypeMapper typeMapper;
@@ -18,10 +20,7 @@ class ControllerGenerator {
 
     // 文件头
     final tagDesc = entry.description.isNotEmpty ? entry.description : tag;
-    buf.writeln('/// $tagDesc API 控制器');
-    buf.writeln('/// 此文件由 genCode 工具自动生成');
-    buf.writeln('/// 请勿手动修改');
-    buf.writeln('library;');
+    writeFileHeader(buf, '$tagDesc API 控制器');
     buf.writeln();
     buf.writeln("import 'package:dio/dio.dart';");
     buf.writeln("import '../../../core/network/index.dart';");
@@ -165,10 +164,7 @@ class ControllerGenerator {
   // ─── 工具方法 ───
 
   /// 将 schema 名称转为 Dto 名称
-  String _toDtoName(String name) {
-    if (name.isEmpty) return 'dynamic';
-    return name.endsWith('Dto') ? name : '${name}Dto';
-  }
+  String _toDtoName(String name) => ensureDtoSuffix(name);
 
   /// 判断是否有数组类型的 body
   bool _hasArrayBody(ProcessedApi api) {

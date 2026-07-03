@@ -5,6 +5,9 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 
+import '../constants/swagger_constants.dart';
+import '../utils/ref_utils.dart';
+
 class SwaggerParser {
   Map<String, dynamic> _doc = {};
 
@@ -71,7 +74,7 @@ class SwaggerParser {
       final path = pathEntry.key;
       final pathItem = pathEntry.value as Map<String, dynamic>;
 
-      for (final method in ['get', 'post', 'put', 'delete', 'patch']) {
+      for (final method in httpMethods) {
         if (!pathItem.containsKey(method)) continue;
         final operation = pathItem[method] as Map<String, dynamic>;
         final tags = (operation['tags'] as List<dynamic>?)?.cast<String>() ?? [];
@@ -93,7 +96,7 @@ class SwaggerParser {
     for (final pathEntry in paths.entries) {
       final pathItem = pathEntry.value as Map<String, dynamic>;
 
-      for (final method in ['get', 'post', 'put', 'delete', 'patch']) {
+      for (final method in httpMethods) {
         if (!pathItem.containsKey(method)) continue;
         final operation = pathItem[method] as Map<String, dynamic>;
         final tags = (operation['tags'] as List<dynamic>?)?.cast<String>() ?? [];
@@ -115,7 +118,7 @@ class SwaggerParser {
     for (final pathEntry in paths.entries) {
       final pathItem = pathEntry.value as Map<String, dynamic>;
 
-      for (final method in ['get', 'post', 'put', 'delete', 'patch']) {
+      for (final method in httpMethods) {
         if (!pathItem.containsKey(method)) continue;
         final operation = pathItem[method] as Map<String, dynamic>;
         final tags = (operation['tags'] as List<dynamic>?)?.cast<String>() ?? [];
@@ -137,7 +140,7 @@ class SwaggerParser {
     if (node is Map<String, dynamic>) {
       final ref = node['\$ref'] as String?;
       if (ref != null) {
-        final schemaName = ref.split('/').last;
+        final schemaName = extractSchemaName(ref);
         if (!refs.contains(schemaName)) {
           refs.add(schemaName);
           // 递归收集被引用 schema 的内部引用
@@ -166,7 +169,7 @@ class SwaggerParser {
   String? extractRef(Map<String, dynamic> schema) {
     final ref = schema['\$ref'] as String?;
     if (ref == null) return null;
-    return ref.split('/').last;
+    return extractSchemaName(ref);
   }
 
   /// 递归为 $ref 字段补充 description（从被引用 schema 复制）
@@ -190,7 +193,7 @@ class SwaggerParser {
 
         // 如果字段有 $ref，补充 description
         if (prop.containsKey('\$ref')) {
-          final refName = prop['\$ref'].toString().split('/').last;
+          final refName = extractSchemaName(prop['\$ref'].toString());
           final refSchema = allSchemas[refName];
           if (refSchema != null) {
             // 补充描述（如果字段本身没有）
@@ -216,7 +219,7 @@ class SwaggerParser {
           final items = prop['items'];
           if (items is Map<String, dynamic>) {
             if (items.containsKey('\$ref')) {
-              final refName = items['\$ref'].toString().split('/').last;
+              final refName = extractSchemaName(items['\$ref'].toString());
               final refSchema = allSchemas[refName];
               if (refSchema != null) {
                 if (refSchema.containsKey('enum')) {
@@ -342,7 +345,7 @@ class EndpointInfo {
     // 检查是否为 $ref
     final ref = schema['\$ref'] as String?;
 
-    return RequestBodyInfo(schema: schema, isFormData: isFormData, isArray: isArray, arrayItems: arrayItems, refName: ref?.split('/').last);
+    return RequestBodyInfo(schema: schema, isFormData: isFormData, isArray: isArray, arrayItems: arrayItems, refName: ref != null ? extractSchemaName(ref) : null);
   }
 
   /// 是否为 form-data 请求
@@ -381,14 +384,14 @@ class EndpointInfo {
 
     // 情况1: 直接引用
     final ref = schema['\$ref'] as String?;
-    if (ref != null) return ref.split('/').last;
+    if (ref != null) return extractSchemaName(ref);
 
     // 情况2: 数组类型，提取 items 中的引用
     if (schema['type'] == 'array') {
       final items = schema['items'] as Map<String, dynamic>?;
       if (items != null) {
         final itemsRef = items['\$ref'] as String?;
-        if (itemsRef != null) return itemsRef.split('/').last;
+        if (itemsRef != null) return extractSchemaName(itemsRef);
       }
     }
 

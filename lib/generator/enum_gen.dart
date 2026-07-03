@@ -2,18 +2,8 @@
 library;
 
 import '../utils/naming.dart';
-
-/// 预设颜色循环 (8种)
-const _colors = [
-  (0xff4F46E5, 0xffe8e5ff), // indigo
-  (0xff10B981, 0xffc6f6d5), // green
-  (0xffC2410C, 0xfffff3c7), // orange
-  (0xffDC2626, 0xfffee2e2), // red
-  (0xff0284C7, 0xffe0f2fe), // sky
-  (0xff7C3AED, 0xffede9fe), // violet
-  (0xffDB2777, 0xfffce7f3), // pink
-  (0xff059669, 0xffd1fae5), // emerald
-];
+import '../utils/header_utils.dart';
+import '../constants/generator_constants.dart';
 
 class EnumGenerator {
   final Map<String, Map<String, dynamic>> enumSchemas;
@@ -23,44 +13,23 @@ class EnumGenerator {
   /// 为指定位置生成枚举文件
   /// 返回: Map<相对路径, 文件内容>
   Map<String, String> generateForLocation(String area, String tagDir, Set<String> enumNames) {
-    final result = <String, String>{};
-
-    final buf = StringBuffer();
-    buf.writeln('/// $tagDir 相关枚举定义');
-    buf.writeln('/// 此文件由 genCode 工具自动生成');
-    buf.writeln('/// 请勿手动修改');
-    buf.writeln('library;');
-    buf.writeln();
-    buf.writeln("import 'package:flutter/material.dart';");
-    buf.writeln("import 'package:json_annotation/json_annotation.dart';");
-
-    var hasContent = false;
-    for (final enumName in enumNames) {
-      final schema = enumSchemas[enumName];
-      if (schema == null) continue;
-      if (!schema.containsKey('enum')) continue;
-
-      buf.writeln();
-      _generateEnum(buf, enumName, schema);
-      hasContent = true;
-    }
-
-    if (hasContent) {
-      result['$area/$tagDir.dart'] = buf.toString();
-    }
-    return result;
+    final content = _buildEnumFile('$tagDir 相关枚举定义', enumNames);
+    if (content == null) return {};
+    return {'$area/$tagDir.dart': content};
   }
 
   /// 生成 common 枚举文件
   /// 返回: Map<相对路径, 文件内容>
   Map<String, String> generateCommon(Set<String> enumNames) {
-    final result = <String, String>{};
+    final content = _buildEnumFile('通用枚举定义', enumNames);
+    if (content == null) return {};
+    return {'common.dart': content};
+  }
 
+  /// 构建枚举文件内容，若无有效枚举则返回 null
+  String? _buildEnumFile(String headerDesc, Set<String> enumNames) {
     final buf = StringBuffer();
-    buf.writeln('/// 通用枚举定义');
-    buf.writeln('/// 此文件由 genCode 工具自动生成');
-    buf.writeln('/// 请勿手动修改');
-    buf.writeln('library;');
+    writeFileHeader(buf, headerDesc);
     buf.writeln();
     buf.writeln("import 'package:flutter/material.dart';");
     buf.writeln("import 'package:json_annotation/json_annotation.dart';");
@@ -76,10 +45,7 @@ class EnumGenerator {
       hasContent = true;
     }
 
-    if (hasContent) {
-      result['common.dart'] = buf.toString();
-    }
-    return result;
+    return hasContent ? buf.toString() : null;
   }
 
   void _generateEnum(StringBuffer buf, String schemaName, Map<String, dynamic> schema) {
@@ -105,9 +71,9 @@ class EnumGenerator {
       final rawName = info != null ? (info.name[0].toLowerCase() + info.name.substring(1)) : 'value$value';
       final name = safeEnumName(rawName);
       final text = info?.text ?? '$value';
-      final colorIndex = i % _colors.length;
-      final color = _colors[colorIndex].$1;
-      final bgColor = _colors[colorIndex].$2;
+      final colorIndex = i % enumColors.length;
+      final color = enumColors[colorIndex].$1;
+      final bgColor = enumColors[colorIndex].$2;
 
       final colorHex = color.toRadixString(16).substring(2).padLeft(6, '0');
       final bgColorHex = bgColor.toRadixString(16).substring(2).padLeft(6, '0');
@@ -120,8 +86,10 @@ class EnumGenerator {
     }
 
     // customUnknown 兜底值
-    buf.writeln('  @JsonValue(-9999)');
-    buf.writeln("  customUnknown(name: 'CustomUnknown', value: -9999, text: '--', color: Color(0xff6B7280), bgColor: Color(0xfff3f4f6));");
+    buf.writeln('  @JsonValue($customUnknownValue)');
+    buf.writeln(
+      "  $customUnknownName(name: '$customUnknownName', value: $customUnknownValue, text: '$customUnknownText', color: Color(0x${customUnknownColor.toRadixString(16).toUpperCase()}), bgColor: Color(0x${customUnknownBgColor.toRadixString(16).toUpperCase()}));",
+    );
     buf.writeln();
 
     // 字段声明
@@ -148,6 +116,6 @@ class EnumGenerator {
     }
     buf.writeln('    return [${names.map((n) => '$className.$n').join(', ')}];');
     buf.writeln('  }');
-    buf.write('}');
+    buf.writeln('}');
   }
 }

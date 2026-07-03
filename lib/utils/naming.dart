@@ -1,6 +1,8 @@
 /// 命名转换工具
 library;
 
+import '../constants/generator_constants.dart';
+
 /// Dart 保留字集合
 const _dartKeywords = {
   'abstract',
@@ -138,26 +140,25 @@ String tagToGroupName(String area) {
 
 /// Schema 名转 Dart 类名: DemoUserAddInput → DemoUserAddInputDto
 String schemaToClassName(String schemaName) {
-  if (schemaName.endsWith('Dto')) return schemaName;
-  return '${schemaName}Dto';
+  if (schemaName.endsWith(dtoSuffix)) return schemaName;
+  return '$schemaName$dtoSuffix';
 }
 
 /// 枚举 Schema 名转 Dart 枚举名: DemoUserType → DemoUserTypeEnum
 /// 如果已经以 Enum 结尾则不再追加
 String enumSchemaToClassName(String schemaName) {
-  if (schemaName.endsWith('Enum')) return schemaName;
-  return '${schemaName}Enum';
+  if (schemaName.endsWith(enumSuffix)) return schemaName;
+  return '$schemaName$enumSuffix';
 }
 
 /// Tag 名转 API 类名: DemoUser → DemoUserAPI
-String tagToApiClassName(String tag) {
-  return '${tag}API';
-}
+String tagToApiClassName(String tag) => '${tag}API';
 
 /// 解析枚举描述字符串
 /// 兼容两种格式:
 ///   1. EnumName:Name1(Text1)=Value1,Name2(Text2)=Value2 (标准格式)
 ///   2. EnumName:Name1=Value1,Name2=Value2             (简易格式)
+// ignore: unintended_html_in_doc_comment
 /// 返回: Map<int, EnumValueInfo>
 Map<int, EnumValueInfo> parseEnumDescription(String description) {
   final result = <int, EnumValueInfo>{};
@@ -213,7 +214,7 @@ String inlineDtoName(String tag, String path) {
   // 如果 operationName 已经以 tag 的 PascalCase 开头，不重复添加
   final pascalTag = toPascalCase(tag);
   if (operationName.startsWith(pascalTag)) {
-    return '${operationName}Dto';
+    return '$operationName$dtoSuffix';
   }
-  return '$pascalTag${operationName}Dto';
+  return '$pascalTag$operationName$dtoSuffix';
 }

@@ -1,8 +1,9 @@
 /// Dart API 代码生成工具 - CLI 入口
 /// 从 Swagger/OpenAPI JSON 生成 Dart API 控制器、数据模型和枚举定义
+library;
 
-import 'dart:convert';
 import 'dart:io';
+import 'dart:convert';
 import 'package:args/args.dart';
 import 'package:path/path.dart' as p;
 
@@ -63,9 +64,8 @@ Future<void> main(List<String> arguments) async {
   // 1. 加载配置文件
   final configPath = results['config'] as String;
   CodeGenConfig config = const CodeGenConfig();
-  final foundConfigPath = CodeGenConfig.findConfigFile() ?? 
-      (File(configPath).existsSync() ? configPath : null);
-  
+  final foundConfigPath = CodeGenConfig.findConfigFile() ?? (File(configPath).existsSync() ? configPath : null);
+
   if (foundConfigPath != null) {
     final loaded = CodeGenConfig.fromFile(foundConfigPath);
     if (loaded != null) {
@@ -75,11 +75,7 @@ Future<void> main(List<String> arguments) async {
   }
 
   // 2. CLI 参数覆盖配置
-  config = config.mergeWithCli(
-    url: results['url'] as String?,
-    file: results['file'] as String?,
-    output: results['output'] as String?,
-  );
+  config = config.mergeWithCli(url: results['url'] as String?, file: results['file'] as String?, output: results['output'] as String?);
 
   // 3. 验证配置
   final configError = config.error;
@@ -115,9 +111,7 @@ Future<void> main(List<String> arguments) async {
     swaggerDir = tempSwaggerDir;
     Directory(swaggerDir).createSync(recursive: true);
     final swaggerJsonFile = p.join(swaggerDir, 'index.json');
-    File(swaggerJsonFile).writeAsStringSync(
-      const JsonEncoder.withIndent('  ').convert(parser.rawDoc),
-    );
+    File(swaggerJsonFile).writeAsStringSync(const JsonEncoder.withIndent('  ').convert(parser.rawDoc));
     print('   💾 Swagger JSON 已保存: $swaggerJsonFile');
   } else {
     // save_swagger_json: false 时，删除 temp-swagger-data 目录（如果存在）
@@ -133,9 +127,7 @@ Future<void> main(List<String> arguments) async {
   final processedSwagger = processor.process(parser.rawDoc);
   if (config.saveSwaggerJson && swaggerDir != null) {
     final processedJsonFile = p.join(swaggerDir, 'processSwagger.json');
-    File(processedJsonFile).writeAsStringSync(
-      const JsonEncoder.withIndent('  ').convert(processedSwagger),
-    );
+    File(processedJsonFile).writeAsStringSync(const JsonEncoder.withIndent('  ').convert(processedSwagger));
     print('   💾 处理后数据已保存: $processedJsonFile');
   }
 
@@ -149,7 +141,7 @@ Future<void> main(List<String> arguments) async {
   final classification = loader.classifyTypes();
   final typeLocations = loader.computeTypeLocations();
   final controllerLocations = loader.computeControllerLocations();
-  final typeMapper = TypeMapper(loader.schemasForTypeMapper);
+  final typeMapper = TypeMapper(loader.schemas);
 
   final enumNames = classification.enums;
   final objectNames = classification.objects;
@@ -211,9 +203,7 @@ Future<void> main(List<String> arguments) async {
   for (final entry in enumsByLocation.entries) {
     final locationKey = entry.key;
     for (final enumName in entry.value) {
-      enumLocationMap[enumName] = locationKey == 'common'
-          ? 'common.dart'
-          : '$locationKey.dart';
+      enumLocationMap[enumName] = locationKey == 'common' ? 'common.dart' : '$locationKey.dart';
     }
   }
 
@@ -222,9 +212,7 @@ Future<void> main(List<String> arguments) async {
   for (final entry in objectsByLocation.entries) {
     final locationKey = entry.key;
     for (final schemaName in entry.value) {
-      schemaLocationMap[schemaName] = locationKey == 'common'
-          ? 'common/index.dart'
-          : '$locationKey/index.dart';
+      schemaLocationMap[schemaName] = locationKey == 'common' ? 'common/index.dart' : '$locationKey/index.dart';
     }
   }
 
@@ -296,11 +284,7 @@ Future<void> main(List<String> arguments) async {
         final dir = p.join(absOutputDir, 'types', 'common');
         Directory(dir).createSync(recursive: true);
         final commonEnums = enumsByLocation['common'] ?? {};
-        final content = typesGen.generateCommon(
-          names, commonEnums,
-          schemaLocationMap: schemaLocationMap,
-          enumLocationMap: enumLocationMap,
-        );
+        final content = typesGen.generateCommon(names, commonEnums, schemaLocationMap: schemaLocationMap, enumLocationMap: enumLocationMap);
         final filePath = p.join(dir, 'index.dart');
         if (!overwrite && File(filePath).existsSync()) {
           print('   ⏭️  跳过 types/common/index.dart (已存在)');
@@ -316,11 +300,7 @@ Future<void> main(List<String> arguments) async {
         final dir = p.join(absOutputDir, 'types', area, tagDir);
         Directory(dir).createSync(recursive: true);
         final locationEnums = enumsByLocation[locationKey] ?? {};
-        final content = typesGen.generateForLocation(
-          area, tagDir, names, locationEnums, [],
-          schemaLocationMap: schemaLocationMap,
-          enumLocationMap: enumLocationMap,
-        );
+        final content = typesGen.generateForLocation(area, tagDir, names, locationEnums, [], schemaLocationMap: schemaLocationMap, enumLocationMap: enumLocationMap);
         final filePath = p.join(dir, 'index.dart');
         final relPath = '$area/$tagDir/index.dart';
         if (!overwrite && File(filePath).existsSync()) {
@@ -375,12 +355,7 @@ Future<void> main(List<String> arguments) async {
   if (config.runBuildRunner) {
     print('');
     print('🔧 正在执行 build_runner 生成 .g.dart 文件...');
-    final buildResult = await Process.run(
-      'dart',
-      ['run', 'build_runner', 'build', '--delete-conflicting-outputs'],
-      workingDirectory: absOutputDir,
-      runInShell: true,
-    );
+    final buildResult = await Process.run('dart', ['run', 'build_runner', 'build', '--delete-conflicting-outputs'], workingDirectory: absOutputDir, runInShell: true);
     if (buildResult.exitCode == 0) {
       print('   ✅ build_runner 执行成功');
     } else {

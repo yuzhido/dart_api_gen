@@ -226,7 +226,9 @@ options:
 
       final found = CodeGenConfig.findConfigFile();
       expect(found, isNotNull);
-      expect(found, equals(p.join(tempDir.path, configFileName)));
+      // macOS 的 /var 是 /private/var 的符号链接，需统一解析后比较
+      final resolvedTempDir = tempDir.resolveSymbolicLinksSync();
+      expect(found, equals(p.join(resolvedTempDir, configFileName)));
     });
 
     test('未找到配置文件返回 null', () {
