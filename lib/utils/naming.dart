@@ -3,78 +3,6 @@ library;
 
 import '../constants/generator_constants.dart';
 
-/// Dart 保留字集合
-const _dartKeywords = {
-  'abstract',
-  'as',
-  'assert',
-  'async',
-  'await',
-  'base',
-  'break',
-  'case',
-  'catch',
-  'class',
-  'const',
-  'continue',
-  'covariant',
-  'default',
-  'deferred',
-  'do',
-  'dynamic',
-  'else',
-  'enum',
-  'export',
-  'extends',
-  'extension',
-  'external',
-  'factory',
-  'false',
-  'final',
-  'finally',
-  'for',
-  'function',
-  'get',
-  'hide',
-  'if',
-  'implements',
-  'import',
-  'in',
-  'interface',
-  'is',
-  'late',
-  'library',
-  'mixin',
-  'new',
-  'null',
-  'of',
-  'on',
-  'operator',
-  'part',
-  'required',
-  'rethrow',
-  'return',
-  'sealed',
-  'set',
-  'show',
-  'static',
-  'super',
-  'switch',
-  'sync',
-  'this',
-  'throw',
-  'true',
-  'try',
-  'type',
-  'typedef',
-  'var',
-  'void',
-  'when',
-  'while',
-  'with',
-  'yield',
-};
-
 /// Dart Object 内置属性集合（字段名冲突时需加后缀）
 const dartObjectProperties = {'hashCode', 'runtimeType'};
 
@@ -92,7 +20,7 @@ String safeEnumName(String rawName) {
     name = 'value$name';
   }
   // 如果是 Dart 关键字（全小写匹配），加 $ 前缀
-  if (_dartKeywords.contains(name.toLowerCase())) {
+  if (reservedDartKeywords.contains(name.toLowerCase())) {
     name = '\$$name';
   }
   // 空名兜底

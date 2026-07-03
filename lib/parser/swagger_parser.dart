@@ -1,8 +1,8 @@
 /// Swagger/OpenAPI JSON 解析器
 library;
 
-import 'dart:convert';
 import 'dart:io';
+import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../constants/swagger_constants.dart';

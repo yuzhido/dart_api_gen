@@ -7,13 +7,13 @@ import 'dart:convert';
 import 'package:args/args.dart';
 import 'package:path/path.dart' as p;
 
-import 'package:dart_api_gen/config/code_gen_config.dart';
-import 'package:dart_api_gen/parser/swagger_parser.dart';
 import 'package:dart_api_gen/utils/type_mapper.dart';
 import 'package:dart_api_gen/generator/enum_gen.dart';
 import 'package:dart_api_gen/generator/types_gen.dart';
-import 'package:dart_api_gen/generator/controller_gen.dart';
 import 'package:dart_api_gen/generator/index_gen.dart';
+import 'package:dart_api_gen/parser/swagger_parser.dart';
+import 'package:dart_api_gen/config/code_gen_config.dart';
+import 'package:dart_api_gen/generator/controller_gen.dart';
 import 'package:dart_api_gen/parser/swagger_processor.dart';
 import 'package:dart_api_gen/parser/processed_swagger_loader.dart';
 

@@ -1,11 +1,11 @@
 /// API 控制器生成器
 library;
 
-import '../parser/processed_swagger_loader.dart';
 import '../utils/naming.dart';
 import '../utils/type_mapper.dart';
 import '../utils/ref_utils.dart';
 import '../utils/header_utils.dart';
+import '../parser/processed_swagger_loader.dart';
 
 class ControllerGenerator {
   final TypeMapper typeMapper;
@@ -36,7 +36,7 @@ class ControllerGenerator {
       _generateMethod(buf, tag, entry.apis[i]);
     }
 
-    buf.write('}');
+    buf.writeln('}');
 
     return buf.toString();
   }
@@ -148,7 +148,7 @@ class ControllerGenerator {
     buf.writeln('    final response = await _dio.request(');
     buf.writeln("      '$path',");
     buf.writeln("      method: '$method',");
-    buf.write(requestLogic);
+    buf.writeln(requestLogic);
     if (isFormData) {
       buf.writeln('      options: Options(contentType: Headers.multipartFormDataContentType),');
     }

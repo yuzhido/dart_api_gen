@@ -2,8 +2,8 @@
 /// 读取处理后的 Swagger 数据，提供结构化的领域模型和分组计算方法
 library;
 
-import 'dart:convert';
 import 'dart:io';
+import 'dart:convert';
 
 import '../utils/naming.dart';
 import '../utils/ref_utils.dart';
