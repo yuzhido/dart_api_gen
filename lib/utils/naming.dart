@@ -1,4 +1,5 @@
 /// 命名转换工具
+library;
 
 /// Dart 保留字集合
 const _dartKeywords = {
@@ -73,10 +74,7 @@ const _dartKeywords = {
 };
 
 /// Dart Object 内置属性集合（字段名冲突时需加后缀）
-const dartObjectProperties = {
-  'hashCode',
-  'runtimeType',
-};
+const dartObjectProperties = {'hashCode', 'runtimeType'};
 
 /// 将枚举值名转为合法的 Dart 标识符
 /// 处理: Dart 关键字、负数名、非法字符
@@ -105,10 +103,12 @@ String toPascalCase(String input) {
   if (input.isEmpty) return input;
   // 处理 kebab-case, snake_case, 或空格分隔
   final parts = input.split(RegExp(r'[-_\s]+'));
-  return parts.map((part) {
-    if (part.isEmpty) return '';
-    return part[0].toUpperCase() + part.substring(1);
-  }).join('');
+  return parts
+      .map((part) {
+        if (part.isEmpty) return '';
+        return part[0].toUpperCase() + part.substring(1);
+      })
+      .join('');
 }
 
 /// 转为 camelCase
@@ -122,13 +122,7 @@ String toCamelCase(String input) {
 String toSnakeCase(String input) {
   if (input.isEmpty) return input;
   // 处理 PascalCase / camelCase → snake_case
-  final result = input
-      .replaceAllMapped(
-        RegExp(r'([A-Z])'),
-        (match) => '_${match.group(0)!.toLowerCase()}',
-      )
-      .replaceAll(RegExp(r'^_'), '')
-      .replaceAll(RegExp(r'-'), '_');
+  final result = input.replaceAllMapped(RegExp(r'([A-Z])'), (match) => '_${match.group(0)!.toLowerCase()}').replaceAll(RegExp(r'^_'), '').replaceAll(RegExp(r'-'), '_');
   return result.toLowerCase();
 }
 
@@ -177,10 +171,7 @@ Map<int, EnumValueInfo> parseEnumDescription(String description) {
 
   // 预处理: 把 Key=Value (无括号标签) 补全为 Key(Key)=Value
   // 例如: "Success=0,Fail=1" → "Success(Success)=0,Fail(Fail)=1"
-  valuesPart = valuesPart.replaceAllMapped(
-    RegExp(r'(\w+)=(-?\d+)'),
-    (m) => '${m.group(1)}(${m.group(1)})=${m.group(2)}',
-  );
+  valuesPart = valuesPart.replaceAllMapped(RegExp(r'(\w+)=(-?\d+)'), (m) => '${m.group(1)}(${m.group(1)})=${m.group(2)}');
 
   final entries = valuesPart.split(',');
 
@@ -204,11 +195,7 @@ class EnumValueInfo {
   final String text;
   final int value;
 
-  EnumValueInfo({
-    required this.name,
-    required this.text,
-    required this.value,
-  });
+  EnumValueInfo({required this.name, required this.text, required this.value});
 }
 
 /// 从 endpoint 路径生成 inline DTO 名称

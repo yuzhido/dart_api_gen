@@ -6,6 +6,8 @@
 ///   3. 追踪 typeUsage（哪个 tag 用了哪个类型）
 ///   4. 传播 tags 到引用链上的类型
 ///   5. 输出 = 原始 swagger + apiPath + typesInfo
+library;
+
 import 'dart:convert';
 
 class SwaggerProcessor {
@@ -62,16 +64,19 @@ class SwaggerProcessor {
         // 处理 query 参数（内联 schema 提升到 typesInfo）
         Map<String, dynamic>? processedParameters;
         final queryParams = _getQueryParams(operation);
-        final hasInlineQuery = queryParams.isNotEmpty &&
-            queryParams.any((p) => p['schema'] is Map && !(p['schema'] as Map).containsKey('\$ref'));
+        final hasInlineQuery = queryParams.isNotEmpty && queryParams.any((p) => p['schema'] is Map && !(p['schema'] as Map).containsKey('\$ref'));
         final hasInlineBody = _hasInlineBody(operation);
         final needsSuffix = hasInlineQuery && hasInlineBody;
 
         if (queryParams.isNotEmpty) {
           processedParameters = _processInlineQueryParams(
-            queryParams, apiPath, primaryTag, typesInfo,
+            queryParams,
+            apiPath,
+            primaryTag,
+            typesInfo,
             operation['summary'] as String? ?? '',
-            tagDescriptions, typeUsageMap,
+            tagDescriptions,
+            typeUsageMap,
             needsSuffix ? 'Query' : null,
           );
         }
@@ -81,9 +86,13 @@ class SwaggerProcessor {
         final rawRequestBody = operation['requestBody'] as Map<String, dynamic>?;
         if (rawRequestBody != null) {
           processedRequestBody = _processRequestBody(
-            rawRequestBody, apiPath, primaryTag, typesInfo,
+            rawRequestBody,
+            apiPath,
+            primaryTag,
+            typesInfo,
             operation['summary'] as String? ?? '',
-            xArea, typeUsageMap,
+            xArea,
+            typeUsageMap,
             needsSuffix ? 'Body' : null,
           );
         }
@@ -92,7 +101,7 @@ class SwaggerProcessor {
         final processedApi = <String, dynamic>{
           'apiPath': apiPath,
           'method': method,
-          'summary': operation['summary'] as String? ?? '',
+          'summary': (operation['summary'] as String?) ?? (operation['description'] as String?) ?? '',
           'operationId': operation['operationId'] as String? ?? '',
         };
         if (xArea != null) processedApi['xArea'] = xArea;
@@ -101,10 +110,7 @@ class SwaggerProcessor {
 
         final resp200 = (operation['responses'] as Map<String, dynamic>?)?['200'] as Map<String, dynamic>?;
         if (resp200 != null) {
-          processedApi['responses'] = {
-            'description': resp200['description'] as String? ?? '',
-            'content': resp200['content'],
-          };
+          processedApi['responses'] = {'description': resp200['description'] as String? ?? '', 'content': resp200['content']};
         }
 
         // 按 tag 分组
@@ -174,9 +180,7 @@ class SwaggerProcessor {
 
   // ─── 类型引用收集 ───────────────────────────────────────────
 
-  void _collectRefsFromRequestBody(
-    Map<String, dynamic> operation, String tag, Map<String, Set<String>> usageMap,
-  ) {
+  void _collectRefsFromRequestBody(Map<String, dynamic> operation, String tag, Map<String, Set<String>> usageMap) {
     final rb = operation['requestBody'] as Map<String, dynamic>?;
     if (rb == null) return;
     final content = rb['content'] as Map<String, dynamic>?;
@@ -188,9 +192,7 @@ class SwaggerProcessor {
     _recordSchemaRefs(schema, tag, usageMap);
   }
 
-  void _collectRefsFromResponse(
-    Map<String, dynamic> operation, String tag, Map<String, Set<String>> usageMap,
-  ) {
+  void _collectRefsFromResponse(Map<String, dynamic> operation, String tag, Map<String, Set<String>> usageMap) {
     final responses = operation['responses'] as Map<String, dynamic>?;
     if (responses == null) return;
     final resp200 = responses['200'] as Map<String, dynamic>?;
@@ -204,9 +206,7 @@ class SwaggerProcessor {
     _recordSchemaRefs(schema, tag, usageMap);
   }
 
-  void _collectRefsFromParameters(
-    Map<String, dynamic> operation, String tag, Map<String, Set<String>> usageMap,
-  ) {
+  void _collectRefsFromParameters(Map<String, dynamic> operation, String tag, Map<String, Set<String>> usageMap) {
     final params = operation['parameters'] as List<dynamic>?;
     if (params == null) return;
     for (final param in params) {
@@ -243,10 +243,7 @@ class SwaggerProcessor {
   List<Map<String, dynamic>> _getQueryParams(Map<String, dynamic> operation) {
     final params = operation['parameters'] as List<dynamic>?;
     if (params == null) return [];
-    return params
-        .where((p) => (p as Map<String, dynamic>)['in'] == 'query')
-        .cast<Map<String, dynamic>>()
-        .toList();
+    return params.where((p) => (p as Map<String, dynamic>)['in'] == 'query').cast<Map<String, dynamic>>().toList();
   }
 
   bool _hasInlineBody(Map<String, dynamic> operation) {
@@ -255,22 +252,27 @@ class SwaggerProcessor {
     final content = rb['content'] as Map<String, dynamic>?;
     if (content == null) return false;
     return !content.values.any((m) {
-      final mt = m as Map<String, dynamic>;
-      final schema = mt['schema'] as Map<String, dynamic>?;
-      return schema != null && schema.containsKey('\$ref');
-    }) && !content.values.any((m) {
-      // 简单类型 body（integer/string/boolean/number）不需要提升为 DTO
-      final mt = m as Map<String, dynamic>;
-      final schema = mt['schema'] as Map<String, dynamic>?;
-      return schema != null && _isSimpleTypeSchema(schema);
-    });
+          final mt = m as Map<String, dynamic>;
+          final schema = mt['schema'] as Map<String, dynamic>?;
+          return schema != null && schema.containsKey('\$ref');
+        }) &&
+        !content.values.any((m) {
+          // 简单类型 body（integer/string/boolean/number）不需要提升为 DTO
+          final mt = m as Map<String, dynamic>;
+          final schema = mt['schema'] as Map<String, dynamic>?;
+          return schema != null && _isSimpleTypeSchema(schema);
+        });
   }
 
   Map<String, dynamic>? _processInlineQueryParams(
     List<Map<String, dynamic>> queryParams,
-    String apiPath, String tag, Map<String, dynamic> typesInfo,
-    String summary, Map<String, String> tagDescriptions,
-    Map<String, Set<String>> typeUsageMap, String? suffix,
+    String apiPath,
+    String tag,
+    Map<String, dynamic> typesInfo,
+    String summary,
+    Map<String, String> tagDescriptions,
+    Map<String, Set<String>> typeUsageMap,
+    String? suffix,
   ) {
     final schemaName = '${_generateInlineSchemaName(apiPath)}${suffix ?? ''}';
 
@@ -312,9 +314,15 @@ class SwaggerProcessor {
     return {
       'description': '',
       'content': {
-        'text/plain': {'schema': {'\$ref': '#/components/schemas/$schemaName'}},
-        'application/json': {'schema': {'\$ref': '#/components/schemas/$schemaName'}},
-        'text/json': {'schema': {'\$ref': '#/components/schemas/$schemaName'}},
+        'text/plain': {
+          'schema': {'\$ref': '#/components/schemas/$schemaName'},
+        },
+        'application/json': {
+          'schema': {'\$ref': '#/components/schemas/$schemaName'},
+        },
+        'text/json': {
+          'schema': {'\$ref': '#/components/schemas/$schemaName'},
+        },
       },
     };
   }
@@ -323,9 +331,13 @@ class SwaggerProcessor {
 
   Map<String, dynamic>? _processRequestBody(
     Map<String, dynamic> requestBody,
-    String apiPath, String tag, Map<String, dynamic> typesInfo,
-    String summary, String? xArea,
-    Map<String, Set<String>> typeUsageMap, String? suffix,
+    String apiPath,
+    String tag,
+    Map<String, dynamic> typesInfo,
+    String summary,
+    String? xArea,
+    Map<String, Set<String>> typeUsageMap,
+    String? suffix,
   ) {
     final content = requestBody['content'] as Map<String, dynamic>?;
     if (content == null) return null;
@@ -343,9 +355,7 @@ class SwaggerProcessor {
     }
 
     // 简单类型 body（integer/string/boolean/number）不提升到 typesInfo，保持原始结构
-    final firstMediaType = isMultipart
-        ? content['multipart/form-data'] as Map<String, dynamic>?
-        : _selectMediaType(content);
+    final firstMediaType = isMultipart ? content['multipart/form-data'] as Map<String, dynamic>? : _selectMediaType(content);
     final schema = firstMediaType?['schema'] as Map<String, dynamic>?;
     if (schema != null && _isSimpleTypeSchema(schema)) {
       // 保留原始 body 结构，controller_gen 会通过 TypeMapper 映射为简单 Dart 类型
@@ -370,16 +380,24 @@ class SwaggerProcessor {
       return {
         'description': requestBody['description'] as String? ?? '',
         'content': {
-          'multipart/form-data': {'schema': {'\$ref': refPath}},
+          'multipart/form-data': {
+            'schema': {'\$ref': refPath},
+          },
         },
       };
     }
     return {
       'description': requestBody['description'] as String? ?? '',
       'content': {
-        'text/plain': {'schema': {'\$ref': refPath}},
-        'application/json': {'schema': {'\$ref': refPath}},
-        'text/json': {'schema': {'\$ref': refPath}},
+        'text/plain': {
+          'schema': {'\$ref': refPath},
+        },
+        'application/json': {
+          'schema': {'\$ref': refPath},
+        },
+        'text/json': {
+          'schema': {'\$ref': refPath},
+        },
       },
     };
   }
@@ -395,7 +413,9 @@ class SwaggerProcessor {
       return {
         'description': description,
         'content': {
-          'multipart/form-data': {'schema': {'\$ref': '#/components/schemas/$schemaName'}},
+          'multipart/form-data': {
+            'schema': {'\$ref': '#/components/schemas/$schemaName'},
+          },
         },
       };
     }
@@ -414,9 +434,15 @@ class SwaggerProcessor {
     return {
       'description': description,
       'content': {
-        'text/plain': {'schema': {'\$ref': '#/components/schemas/$schemaName'}},
-        'application/json': {'schema': {'\$ref': '#/components/schemas/$schemaName'}},
-        'text/json': {'schema': {'\$ref': '#/components/schemas/$schemaName'}},
+        'text/plain': {
+          'schema': {'\$ref': '#/components/schemas/$schemaName'},
+        },
+        'application/json': {
+          'schema': {'\$ref': '#/components/schemas/$schemaName'},
+        },
+        'text/json': {
+          'schema': {'\$ref': '#/components/schemas/$schemaName'},
+        },
       },
     };
   }
@@ -572,12 +598,17 @@ class SwaggerProcessor {
     final segments = apiPath.split('/').where((s) => s.isNotEmpty).toList();
     final count = segments.length >= 2 ? 2 : 1;
     final selected = segments.sublist(segments.length - count);
-    return selected.map((s) {
-      return s.split('-').map((part) {
-        if (part.isEmpty) return '';
-        return part[0].toUpperCase() + part.substring(1);
-      }).join('');
-    }).join('');
+    return selected
+        .map((s) {
+          return s
+              .split('-')
+              .map((part) {
+                if (part.isEmpty) return '';
+                return part[0].toUpperCase() + part.substring(1);
+              })
+              .join('');
+        })
+        .join('');
   }
 
   Map<String, dynamic>? _selectMediaType(Map<String, dynamic> content) {
@@ -608,9 +639,7 @@ class SwaggerProcessor {
   Map<String, dynamic> _normalizeSimpleBody(Map<String, dynamic> requestBody, Map<String, dynamic> content) {
     final description = requestBody['description'] as String? ?? '';
     // 优先选择 application/json，否则取第一个 media type
-    final selectedKey = content.containsKey('application/json')
-        ? 'application/json'
-        : content.keys.first;
+    final selectedKey = content.containsKey('application/json') ? 'application/json' : content.keys.first;
     final selectedContent = content[selectedKey] as Map<String, dynamic>;
     final schema = selectedContent['schema'];
     return {

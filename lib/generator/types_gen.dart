@@ -1,4 +1,6 @@
 /// 数据模型文件生成器
+library;
+
 import '../utils/naming.dart';
 import '../utils/type_mapper.dart';
 
@@ -9,12 +11,7 @@ class InlineDtoInfo {
   final bool isTypedef;
   final String typedefType;
 
-  InlineDtoInfo({
-    required this.className,
-    required this.fields,
-    this.isTypedef = false,
-    this.typedefType = '',
-  });
+  InlineDtoInfo({required this.className, required this.fields, this.isTypedef = false, this.typedefType = ''});
 }
 
 /// Inline DTO 字段信息
@@ -25,13 +22,7 @@ class InlineFieldInfo {
   final String description;
   final String jsonName;
 
-  InlineFieldInfo({
-    required this.name,
-    required this.type,
-    required this.isRequired,
-    required this.description,
-    required this.jsonName,
-  });
+  InlineFieldInfo({required this.name, required this.type, required this.isRequired, required this.description, required this.jsonName});
 }
 
 class TypesGenerator {
@@ -107,10 +98,7 @@ class TypesGenerator {
   }
 
   /// 生成 common types 文件
-  String generateCommon(Set<String> objectNames, Set<String> commonEnums, {
-    Map<String, String> schemaLocationMap = const {},
-    Map<String, String> enumLocationMap = const {},
-  }) {
+  String generateCommon(Set<String> objectNames, Set<String> commonEnums, {Map<String, String> schemaLocationMap = const {}, Map<String, String> enumLocationMap = const {}}) {
     final buf = StringBuffer();
 
     buf.writeln('/// 通用数据模型类型定义');
@@ -277,12 +265,7 @@ class TypesGenerator {
 
   /// 收集枚举 import 路径
   /// [currentFilePath] 当前 types 文件相对于 types/ 目录的路径
-  List<String> _collectEnumImports(
-    Set<String> schemaNames,
-    Set<String> locationEnums,
-    Map<String, String> enumLocationMap,
-    String currentFilePath,
-  ) {
+  List<String> _collectEnumImports(Set<String> schemaNames, Set<String> locationEnums, Map<String, String> enumLocationMap, String currentFilePath) {
     final imports = <String>{};
 
     for (final schemaName in schemaNames) {
@@ -307,11 +290,7 @@ class TypesGenerator {
 
   /// 收集跨位置的类型引用 import
   /// [currentFilePath] 当前 types 文件相对于 types/ 目录的路径
-  List<String> _collectTypeImports(
-    Set<String> schemaNames,
-    Map<String, String> schemaLocationMap,
-    String currentFilePath,
-  ) {
+  List<String> _collectTypeImports(Set<String> schemaNames, Map<String, String> schemaLocationMap, String currentFilePath) {
     final imports = <String>{};
 
     for (final schemaName in schemaNames) {
@@ -331,9 +310,7 @@ class TypesGenerator {
         final refParts = refLocation.split('/');
         // 找到共同前缀长度
         var commonLen = 0;
-        while (commonLen < currentParts.length - 1 &&
-            commonLen < refParts.length - 1 &&
-            currentParts[commonLen] == refParts[commonLen]) {
+        while (commonLen < currentParts.length - 1 && commonLen < refParts.length - 1 && currentParts[commonLen] == refParts[commonLen]) {
           commonLen++;
         }
         final upCount = currentParts.length - 1 - commonLen; // -1 因为最后是文件名

@@ -1,5 +1,7 @@
 /// 代码生成器配置类
 /// 支持从 YAML 配置文件加载，CLI 参数可覆盖配置
+library;
+
 import 'dart:io';
 import 'package:yaml/yaml.dart';
 import 'package:path/path.dart' as p;
@@ -133,11 +135,7 @@ class CodeGenConfig {
 
   /// 用 CLI 参数覆盖配置（CLI 优先级更高）
   /// 当指定 url 时清除 file，指定 file 时清除 url
-  CodeGenConfig mergeWithCli({
-    String? url,
-    String? file,
-    String? output,
-  }) {
+  CodeGenConfig mergeWithCli({String? url, String? file, String? output}) {
     return CodeGenConfig(
       sourceUrl: url != null ? url : (file != null ? null : sourceUrl),
       sourceFile: file != null ? file : (url != null ? null : sourceFile),

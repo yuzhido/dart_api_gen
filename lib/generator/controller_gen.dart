@@ -1,4 +1,6 @@
 /// API 控制器生成器
+library;
+
 import '../parser/processed_swagger_loader.dart';
 import '../utils/naming.dart';
 import '../utils/type_mapper.dart';
@@ -110,7 +112,8 @@ class ControllerGenerator {
 
     // 方法注释
     final singleLineSummary = summary.split('\n').map((s) => s.trim()).where((s) => s.isNotEmpty).join(' ');
-    buf.writeln('  /// ### $singleLineSummary');
+    final displayTitle = singleLineSummary.isNotEmpty ? singleLineSummary : tag;
+    buf.writeln('  /// ### $displayTitle');
     buf.writeln('  /// - 请求路径: $path');
     buf.writeln('  /// - 请求方法: ${api.method}');
     if (paramSignature.isNotEmpty) {

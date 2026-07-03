@@ -1,6 +1,6 @@
 /// Dart API 代码生成工具
 /// 从 Swagger/OpenAPI JSON 生成 Dart API 控制器、数据模型和枚举定义
-library dart_api_gen;
+library;
 
 export 'config/code_gen_config.dart';
 export 'parser/swagger_parser.dart';

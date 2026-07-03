@@ -1,4 +1,6 @@
 /// Swagger/OpenAPI JSON 解析器
+library;
+
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
@@ -7,14 +9,10 @@ class SwaggerParser {
   Map<String, dynamic> _doc = {};
 
   /// 所有 schemas (components/schemas)
-  Map<String, Map<String, dynamic>> get schemas =>
-      (_doc['components']?['schemas'] as Map<String, dynamic>?)
-          ?.cast<String, Map<String, dynamic>>() ??
-      {};
+  Map<String, Map<String, dynamic>> get schemas => (_doc['components']?['schemas'] as Map<String, dynamic>?)?.cast<String, Map<String, dynamic>>() ?? {};
 
   /// 所有 paths
-  Map<String, dynamic> get paths =>
-      (_doc['paths'] as Map<String, dynamic>?) ?? {};
+  Map<String, dynamic> get paths => (_doc['paths'] as Map<String, dynamic>?) ?? {};
 
   /// 获取 tags 列表中的 name → description 映射
   Map<String, String> get tagDescriptions {
@@ -60,11 +58,7 @@ class SwaggerParser {
     for (final entry in schemas.entries) {
       final name = entry.key;
       final schema = entry.value;
-      result[name] = SchemaInfo(
-        name: name,
-        schema: schema,
-        isEnum: isEnumSchema(schema),
-      );
+      result[name] = SchemaInfo(name: name, schema: schema, isEnum: isEnumSchema(schema));
     }
     return result;
   }
@@ -83,12 +77,7 @@ class SwaggerParser {
         final tags = (operation['tags'] as List<dynamic>?)?.cast<String>() ?? [];
         final tag = tags.isNotEmpty ? tags.first : 'default';
 
-        final endpoint = EndpointInfo(
-          path: path,
-          method: method,
-          operation: operation,
-          tags: tags,
-        );
+        final endpoint = EndpointInfo(path: path, method: method, operation: operation, tags: tags);
 
         result.putIfAbsent(tag, () => []).add(endpoint);
       }
@@ -280,11 +269,7 @@ class SchemaInfo {
   final Map<String, dynamic> schema;
   final bool isEnum;
 
-  SchemaInfo({
-    required this.name,
-    required this.schema,
-    required this.isEnum,
-  });
+  SchemaInfo({required this.name, required this.schema, required this.isEnum});
 }
 
 /// Endpoint 信息
@@ -294,12 +279,7 @@ class EndpointInfo {
   final Map<String, dynamic> operation;
   final List<String> tags;
 
-  EndpointInfo({
-    required this.path,
-    required this.method,
-    required this.operation,
-    required this.tags,
-  });
+  EndpointInfo({required this.path, required this.method, required this.operation, required this.tags});
 
   String get summary => operation['summary'] as String? ?? '';
   String get operationId => operation['operationId'] as String? ?? '';
@@ -308,19 +288,22 @@ class EndpointInfo {
   List<ParamInfo> get params {
     final parameters = operation['parameters'] as List<dynamic>?;
     if (parameters == null) return [];
-    return parameters.where((p) {
-      final param = p as Map<String, dynamic>;
-      return param['in'] == 'query';
-    }).map((p) {
-      final param = p as Map<String, dynamic>;
-      return ParamInfo(
-        name: param['name'] as String,
-        in_: param['in'] as String,
-        description: param['description'] as String? ?? '',
-        required: param['required'] as bool? ?? false,
-        schema: (param['schema'] as Map<String, dynamic>?) ?? {},
-      );
-    }).toList();
+    return parameters
+        .where((p) {
+          final param = p as Map<String, dynamic>;
+          return param['in'] == 'query';
+        })
+        .map((p) {
+          final param = p as Map<String, dynamic>;
+          return ParamInfo(
+            name: param['name'] as String,
+            in_: param['in'] as String,
+            description: param['description'] as String? ?? '',
+            required: param['required'] as bool? ?? false,
+            schema: (param['schema'] as Map<String, dynamic>?) ?? {},
+          );
+        })
+        .toList();
   }
 
   /// 请求体
@@ -359,13 +342,7 @@ class EndpointInfo {
     // 检查是否为 $ref
     final ref = schema['\$ref'] as String?;
 
-    return RequestBodyInfo(
-      schema: schema,
-      isFormData: isFormData,
-      isArray: isArray,
-      arrayItems: arrayItems,
-      refName: ref?.split('/').last,
-    );
+    return RequestBodyInfo(schema: schema, isFormData: isFormData, isArray: isArray, arrayItems: arrayItems, refName: ref?.split('/').last);
   }
 
   /// 是否为 form-data 请求
@@ -427,13 +404,7 @@ class ParamInfo {
   final bool required;
   final Map<String, dynamic> schema;
 
-  ParamInfo({
-    required this.name,
-    required this.in_,
-    required this.description,
-    required this.required,
-    required this.schema,
-  });
+  ParamInfo({required this.name, required this.in_, required this.description, required this.required, required this.schema});
 }
 
 /// 请求体信息
@@ -444,11 +415,5 @@ class RequestBodyInfo {
   final Map<String, dynamic>? arrayItems;
   final String? refName;
 
-  RequestBodyInfo({
-    required this.schema,
-    required this.isFormData,
-    required this.isArray,
-    this.arrayItems,
-    this.refName,
-  });
+  RequestBodyInfo({required this.schema, required this.isFormData, required this.isArray, this.arrayItems, this.refName});
 }

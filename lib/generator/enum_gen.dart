@@ -1,4 +1,6 @@
 /// 枚举文件生成器
+library;
+
 import '../utils/naming.dart';
 
 /// 预设颜色循环 (8种)

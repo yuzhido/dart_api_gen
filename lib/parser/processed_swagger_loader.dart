@@ -1,5 +1,7 @@
 /// processSwagger.json 加载器
 /// 读取处理后的 Swagger 数据，提供结构化的领域模型和分组计算方法
+library;
+
 import 'dart:convert';
 import 'dart:io';
 
@@ -36,12 +38,7 @@ class ProcessedApiEntry {
   final String? xArea;
   final List<ProcessedApi> apis;
 
-  ProcessedApiEntry({
-    required this.tagName,
-    this.description = '',
-    this.xArea,
-    required this.apis,
-  });
+  ProcessedApiEntry({required this.tagName, this.description = '', this.xArea, required this.apis});
 }
 
 /// 单个 API 端点
@@ -55,16 +52,7 @@ class ProcessedApi {
   final Map<String, dynamic>? requestBody;
   final Map<String, dynamic>? responses;
 
-  ProcessedApi({
-    required this.apiPath,
-    required this.method,
-    this.summary = '',
-    this.operationId = '',
-    this.xArea,
-    this.parameters,
-    this.requestBody,
-    this.responses,
-  });
+  ProcessedApi({required this.apiPath, required this.method, this.summary = '', this.operationId = '', this.xArea, this.parameters, this.requestBody, this.responses});
 
   // ─── 适配 EndpointInfo 的属性 ───
 
@@ -149,13 +137,7 @@ class ProcessedTypeInfo {
   final List<String> tags;
   final List<String> xArea;
 
-  ProcessedTypeInfo({
-    required this.name,
-    required this.schema,
-    required this.isEnum,
-    this.tags = const [],
-    this.xArea = const [],
-  });
+  ProcessedTypeInfo({required this.name, required this.schema, required this.isEnum, this.tags = const [], this.xArea = const []});
 }
 
 // ─── 加载器 ───────────────────────────────────────────────────
@@ -175,23 +157,20 @@ class ProcessedSwaggerLoader {
       final apis = <ProcessedApi>[];
       for (final api in (e['apis'] as List<dynamic>? ?? [])) {
         final a = api as Map<String, dynamic>;
-        apis.add(ProcessedApi(
-          apiPath: a['apiPath'] as String? ?? '',
-          method: a['method'] as String? ?? 'get',
-          summary: a['summary'] as String? ?? '',
-          operationId: a['operationId'] as String? ?? '',
-          xArea: a['xArea'] as String?,
-          parameters: a['parameters'] as Map<String, dynamic>?,
-          requestBody: a['requestBody'] as Map<String, dynamic>?,
-          responses: a['responses'] as Map<String, dynamic>?,
-        ));
+        apis.add(
+          ProcessedApi(
+            apiPath: a['apiPath'] as String? ?? '',
+            method: a['method'] as String? ?? 'get',
+            summary: a['summary'] as String? ?? '',
+            operationId: a['operationId'] as String? ?? '',
+            xArea: a['xArea'] as String?,
+            parameters: a['parameters'] as Map<String, dynamic>?,
+            requestBody: a['requestBody'] as Map<String, dynamic>?,
+            responses: a['responses'] as Map<String, dynamic>?,
+          ),
+        );
       }
-      _apiEntries.add(ProcessedApiEntry(
-        tagName: e['tagName'] as String? ?? '',
-        description: e['description'] as String? ?? '',
-        xArea: e['xArea'] as String?,
-        apis: apis,
-      ));
+      _apiEntries.add(ProcessedApiEntry(tagName: e['tagName'] as String? ?? '', description: e['description'] as String? ?? '', xArea: e['xArea'] as String?, apis: apis));
     }
 
     // 解析 typesInfo
@@ -263,10 +242,7 @@ class ProcessedSwaggerLoader {
     for (final entry in _typesInfo.entries) {
       final info = entry.value;
       if (info.xArea.length == 1 && info.tags.length == 1) {
-        result[entry.key] = TypeLocation(
-          area: info.xArea.first.toLowerCase(),
-          tagDir: tagToFileName(info.tags.first),
-        );
+        result[entry.key] = TypeLocation(area: info.xArea.first.toLowerCase(), tagDir: tagToFileName(info.tags.first));
       } else {
         result[entry.key] = TypeLocation(area: 'common', isCommon: true);
       }
@@ -279,10 +255,7 @@ class ProcessedSwaggerLoader {
     final result = <String, ControllerLocation>{};
     for (final entry in _apiEntries) {
       final area = (entry.xArea ?? 'common').toLowerCase();
-      result[entry.tagName] = ControllerLocation(
-        area: area,
-        fileName: tagToFileName(entry.tagName),
-      );
+      result[entry.tagName] = ControllerLocation(area: area, fileName: tagToFileName(entry.tagName));
     }
     return result;
   }

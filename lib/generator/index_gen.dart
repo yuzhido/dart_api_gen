@@ -1,4 +1,5 @@
 /// Index 导出文件生成器
+library;
 
 class IndexGenerator {
   /// 生成 controller/index.dart
@@ -30,11 +31,12 @@ class IndexGenerator {
     buf.writeln();
 
     // common 优先
-    final sorted = typePaths.toList()..sort((a, b) {
-      if (a.startsWith('common')) return -1;
-      if (b.startsWith('common')) return 1;
-      return a.compareTo(b);
-    });
+    final sorted = typePaths.toList()
+      ..sort((a, b) {
+        if (a.startsWith('common')) return -1;
+        if (b.startsWith('common')) return 1;
+        return a.compareTo(b);
+      });
 
     for (final path in sorted) {
       buf.writeln("export '$path';");
@@ -74,11 +76,12 @@ class IndexGenerator {
     buf.writeln();
 
     // common 优先
-    final sorted = enumPaths.toList()..sort((a, b) {
-      if (a.startsWith('common')) return -1;
-      if (b.startsWith('common')) return 1;
-      return a.compareTo(b);
-    });
+    final sorted = enumPaths.toList()
+      ..sort((a, b) {
+        if (a.startsWith('common')) return -1;
+        if (b.startsWith('common')) return 1;
+        return a.compareTo(b);
+      });
 
     for (final path in sorted) {
       buf.writeln("export '$path';");

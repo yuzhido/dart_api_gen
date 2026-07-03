@@ -1,4 +1,5 @@
 /// Swagger type → Dart type 映射器
+library;
 
 class TypeMapper {
   final Map<String, Map<String, dynamic>> schemas;
@@ -92,13 +93,7 @@ class FieldInfo {
   final String description;
   final String jsonName;
 
-  FieldInfo({
-    required this.name,
-    required this.type,
-    required this.isRequired,
-    required this.description,
-    required this.jsonName,
-  });
+  FieldInfo({required this.name, required this.type, required this.isRequired, required this.description, required this.jsonName});
 
   /// 是否为枚举类型字段
   bool get isEnum => type.endsWith('Enum');
