@@ -89,7 +89,11 @@ class ControllerGenerator {
       } else if (bodyRef != null) {
         final dtoName = _toDtoName(bodyRef);
         paramSignature = paramSignature.isNotEmpty ? '$paramSignature, $dtoName data' : '$dtoName data';
-        requestLogic += "      data: data.toJson(),\n";
+        if (api.isArrayBody) {
+          requestLogic += "      data: data,\n";
+        } else {
+          requestLogic += "      data: data.toJson(),\n";
+        }
       } else {
         // 简单类型 body（从 requestBody content 中获取类型）
         final bodyType = _getSimpleBodyType(api);
@@ -106,7 +110,11 @@ class ControllerGenerator {
       } else if (bodyRef != null) {
         final dtoName = _toDtoName(bodyRef);
         paramSignature = paramSignature.isNotEmpty ? '$paramSignature, $dtoName data' : '$dtoName data';
-        requestLogic += "      data: data.toJson(),\n";
+        if (api.isArrayBody) {
+          requestLogic += "      data: data,\n";
+        } else {
+          requestLogic += "      data: data.toJson(),\n";
+        }
       }
     }
 

@@ -139,6 +139,23 @@ class TypesGenerator {
 
   void _generateClass(StringBuffer buf, String schemaName, Map<String, dynamic> schema) {
     final className = schemaToClassName(schemaName);
+
+    // 数组类型 schema → 生成 typedef 而非空 class
+    if (schema['type'] == 'array') {
+      final items = schema['items'] as Map<String, dynamic>?;
+      final itemType = items != null ? typeMapper.mapType(items) : 'dynamic';
+      buf.writeln('typedef $className = List<$itemType>;');
+      return;
+    }
+
+    // 简单类型 schema（integer/string/boolean/number）→ 生成 typedef
+    final simpleType = schema['type'] as String?;
+    if (simpleType == 'integer' || simpleType == 'number' || simpleType == 'string' || simpleType == 'boolean') {
+      final dartType = typeMapper.mapType(schema);
+      buf.writeln('typedef $className = $dartType;');
+      return;
+    }
+
     final properties = schema['properties'] as Map<String, dynamic>? ?? {};
     final required = (schema['required'] as List<dynamic>?)?.cast<String>() ?? [];
 

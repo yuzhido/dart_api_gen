@@ -51,8 +51,9 @@ class ProcessedApi {
   final Map<String, dynamic>? parameters;
   final Map<String, dynamic>? requestBody;
   final Map<String, dynamic>? responses;
+  final bool isArrayBody;
 
-  ProcessedApi({required this.apiPath, required this.method, this.summary = '', this.operationId = '', this.xArea, this.parameters, this.requestBody, this.responses});
+  ProcessedApi({required this.apiPath, required this.method, this.summary = '', this.operationId = '', this.xArea, this.parameters, this.requestBody, this.responses, this.isArrayBody = false});
 
   // ─── 适配 EndpointInfo 的属性 ───
 
@@ -167,6 +168,7 @@ class ProcessedSwaggerLoader {
             parameters: a['parameters'] as Map<String, dynamic>?,
             requestBody: a['requestBody'] as Map<String, dynamic>?,
             responses: a['responses'] as Map<String, dynamic>?,
+            isArrayBody: a['isArrayBody'] == true,
           ),
         );
       }

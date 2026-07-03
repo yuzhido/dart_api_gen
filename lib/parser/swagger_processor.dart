@@ -97,12 +97,39 @@ class SwaggerProcessor {
           );
         }
 
+        // 检查 requestBody 是否为数组类型或简单类型（需要提升为 typedef）
+        final rawRb = operation['requestBody'] as Map<String, dynamic>?;
+        final rawRbContent = rawRb?['content'] as Map<String, dynamic>?;
+        final rawRbSchema = rawRbContent != null ? (_selectMediaType(rawRbContent)?['schema'] as Map<String, dynamic>?) : null;
+        final isArrayBody = rawRbSchema != null && (rawRbSchema['type'] == 'array' || _isSimpleTypeSchema(rawRbSchema));
+
+        // 简单类型 body 提升到 typesInfo 作为 typedef
+        if (rawRbSchema != null && _isSimpleTypeSchema(rawRbSchema) && processedRequestBody != null) {
+          final checkContent = processedRequestBody['content'] as Map<String, dynamic>?;
+          final checkSchema = checkContent != null ? (_selectMediaType(checkContent)?['schema'] as Map<String, dynamic>?) : null;
+          if (checkSchema != null && !checkSchema.containsKey('\$ref')) {
+            final schemaName = '${_generateInlineSchemaName(apiPath)}${needsSuffix ? 'Body' : ''}';
+            typesInfo[schemaName] = {
+              ...checkSchema,
+              'description': rawRb?['description'] as String? ?? 'Generated from $apiPath',
+              if ((operation['summary'] as String? ?? '').isNotEmpty) 'summary': '${operation['summary']} - 请求体',
+              'tags': [primaryTag],
+            };
+            _recordTypeUsage(schemaName, primaryTag, typeUsageMap);
+            final refPath = '#/components/schemas/$schemaName';
+            processedRequestBody['content'] = {
+              'application/json': {'schema': {'\$ref': refPath}},
+            };
+          }
+        }
+
         // 构建处理后的 API 对象
         final processedApi = <String, dynamic>{
           'apiPath': apiPath,
           'method': method,
           'summary': (operation['summary'] as String?) ?? (operation['description'] as String?) ?? '',
           'operationId': operation['operationId'] as String? ?? '',
+          if (isArrayBody) 'isArrayBody': true,
         };
         if (xArea != null) processedApi['xArea'] = xArea;
         if (processedParameters != null) processedApi['parameters'] = processedParameters;

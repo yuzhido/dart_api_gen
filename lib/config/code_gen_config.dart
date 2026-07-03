@@ -137,8 +137,8 @@ class CodeGenConfig {
   /// 当指定 url 时清除 file，指定 file 时清除 url
   CodeGenConfig mergeWithCli({String? url, String? file, String? output}) {
     return CodeGenConfig(
-      sourceUrl: url != null ? url : (file != null ? null : sourceUrl),
-      sourceFile: file != null ? file : (url != null ? null : sourceFile),
+      sourceUrl: url ?? (file != null ? null : sourceUrl),
+      sourceFile: file ?? (url != null ? null : sourceFile),
       outputDir: output ?? outputDir,
       saveSwaggerJson: saveSwaggerJson,
       generateControllers: generateControllers,
