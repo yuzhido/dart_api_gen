@@ -48,9 +48,11 @@ class TypesGenerator {
   }) {
     final filePath = '$area/$tagDir/index.dart';
     final buf = StringBuffer();
+    final needsDio = _batchNeedsDio(schemaNames, inlineDtos);
+    final needsJsonAnnotation = _batchNeedsJsonAnnotation(schemaNames, inlineDtos);
 
     _writeFileHeader(buf, 'xArea: $area 服务下相关数据模型类型定义', tagDir);
-    _writeImports(buf, schemaNames, filePath, locationEnums, enumLocationMap, schemaLocationMap);
+    _writeImports(buf, schemaNames, filePath, locationEnums, enumLocationMap, schemaLocationMap, needsDio: needsDio, needsJsonAnnotation: needsJsonAnnotation);
 
     // 生成每个 schema 对应的 class
     var isFirst = true;
@@ -81,9 +83,11 @@ class TypesGenerator {
   String generateCommon(Set<String> objectNames, Set<String> commonEnums, {Map<String, String> schemaLocationMap = const {}, Map<String, String> enumLocationMap = const {}}) {
     const filePath = 'common/index.dart';
     final buf = StringBuffer();
+    final needsDio = _batchNeedsDio(objectNames, const []);
+    final needsJsonAnnotation = _batchNeedsJsonAnnotation(objectNames, const []);
 
     _writeFileHeader(buf, '通用数据模型类型定义', null);
-    _writeImports(buf, objectNames, filePath, commonEnums, enumLocationMap, schemaLocationMap);
+    _writeImports(buf, objectNames, filePath, commonEnums, enumLocationMap, schemaLocationMap, needsDio: needsDio, needsJsonAnnotation: needsJsonAnnotation);
 
     var isFirst = true;
     for (final schemaName in objectNames) {
@@ -116,9 +120,16 @@ class TypesGenerator {
     String filePath,
     Set<String> locationEnums,
     Map<String, String> enumLocationMap,
-    Map<String, String> schemaLocationMap,
-  ) {
-    buf.writeln("import 'package:json_annotation/json_annotation.dart';");
+    Map<String, String> schemaLocationMap, {
+    bool needsDio = false,
+    bool needsJsonAnnotation = true,
+  }) {
+    if (needsJsonAnnotation) {
+      buf.writeln("import 'package:json_annotation/json_annotation.dart';");
+    }
+    if (needsDio) {
+      buf.writeln("import 'package:dio/dio.dart';");
+    }
 
     for (final imp in _collectEnumImports(schemaNames, locationEnums, enumLocationMap, filePath)) {
       buf.writeln("import '$imp';");
@@ -127,7 +138,9 @@ class TypesGenerator {
       buf.writeln("import '$imp';");
     }
 
-    buf.writeln("part 'index.g.dart';");
+    if (needsJsonAnnotation) {
+      buf.writeln("part 'index.g.dart';");
+    }
     buf.writeln();
   }
 
@@ -206,25 +219,123 @@ class TypesGenerator {
     // 对象类型 → 生成 class
     final properties = schema['properties'] as Map<String, dynamic>? ?? {};
     final required = (schema['required'] as List<dynamic>?)?.cast<String>() ?? [];
+    final isMultipartBody = schema['x-multipart'] == true;
 
     final fields = properties.entries.map((e) {
       final jsonName = e.key;
       final propSchema = e.value as Map<String, dynamic>;
       return InlineFieldInfo(
         name: jsonName,
-        type: typeMapper.mapType(propSchema),
+        type: typeMapper.mapType(propSchema, forRequestBody: isMultipartBody),
         isRequired: required.contains(jsonName),
         description: propSchema['description'] as String? ?? '',
         jsonName: jsonName,
       );
     }).toList();
 
-    _writeClassBody(buf, className, fields);
+    // multipart/form-data 请求体且含 binary 字段 → multipart DTO
+    // 响应类型即使有 binary 字段也用标准 JSON DTO
+    if (isMultipartBody && _fieldsHasBinary(fields)) {
+      _writeMultipartClassBody(buf, className, fields);
+    } else {
+      _writeClassBody(buf, className, fields);
+    }
   }
 
   /// 从 InlineDtoInfo 生成 class
   void _generateInlineDto(StringBuffer buf, InlineDtoInfo dto) {
-    _writeClassBody(buf, dto.className, dto.fields);
+    if (_fieldsHasBinary(dto.fields) && dto.className.endsWith('BodyDto')) {
+      _writeMultipartClassBody(buf, dto.className, dto.fields);
+    } else {
+      _writeClassBody(buf, dto.className, dto.fields);
+    }
+  }
+
+  // ─── Multipart DTO 生成（文件上传）──────────────────────────
+
+  /// 判断字段列表中是否包含 MultipartFile 类型
+  bool _fieldsHasBinary(List<InlineFieldInfo> fields) {
+    return fields.any((f) => f.type == 'MultipartFile');
+  }
+
+  /// 判断一批 schema + inlineDtos 中是否有需要 dio import 的 binary 字段
+  /// 只有 multipart/form-data 请求体才会生成 multipart DTO，需要 dio import
+  bool _batchNeedsDio(Set<String> schemaNames, List<InlineDtoInfo> inlineDtos) {
+    for (final name in schemaNames) {
+      final schema = allSchemas[name];
+      if (schema == null) continue;
+      if (schema.containsKey('enum')) continue;
+      if (schema['x-multipart'] != true) continue; // 只检查 multipart 请求体
+      final props = schema['properties'] as Map<String, dynamic>?;
+      if (props != null && props.values.any((v) => v is Map<String, dynamic> && TypeMapper.isBinaryField(v))) {
+        return true;
+      }
+    }
+    return inlineDtos.any((dto) => dto.className.endsWith('BodyDto') && _fieldsHasBinary(dto.fields));
+  }
+
+  /// 判断一批 schema + inlineDtos 中是否有需要 json_annotation 的标准 DTO
+  bool _batchNeedsJsonAnnotation(Set<String> schemaNames, List<InlineDtoInfo> inlineDtos) {
+    for (final name in schemaNames) {
+      final schema = allSchemas[name];
+      if (schema == null) continue;
+      if (schema.containsKey('enum')) continue;
+      // typedef 不需要 json_annotation
+      final type = schema['type'] as String?;
+      if (type == 'array' || type == 'integer' || type == 'number' || type == 'string' || type == 'boolean') continue;
+      final props = schema['properties'] as Map<String, dynamic>?;
+      if (props != null) {
+        // 只有 multipart 请求体且含 binary 字段才不是标准 DTO
+        final isMultipartBody = schema['x-multipart'] == true && props.values.any((v) => v is Map<String, dynamic> && TypeMapper.isBinaryField(v));
+        if (!isMultipartBody) return true; // 有标准 DTO
+      }
+    }
+    return inlineDtos.any((dto) => !dto.isTypedef && !(dto.className.endsWith('BodyDto') && _fieldsHasBinary(dto.fields)));
+  }
+
+  /// 生成 multipart/form-data DTO class（无 @JsonSerializable，带 toFormData）
+  void _writeMultipartClassBody(StringBuffer buf, String className, List<InlineFieldInfo> fields) {
+    buf.writeln('class $className {');
+
+    final requiredFields = <String>[];
+    final optionalFields = <String>[];
+
+    for (var i = 0; i < fields.length; i++) {
+      final field = fields[i];
+      final safeName = dartObjectProperties.contains(field.name) ? '${field.name}Filed' : field.name;
+
+      buf.writeln('  /// - ${field.description.isNotEmpty ? field.description : '未定义'}');
+
+      if (field.isRequired) {
+        buf.writeln('  late ${field.type} $safeName;');
+        requiredFields.add(safeName);
+      } else {
+        final nullableType = field.type == 'dynamic' ? field.type : '${field.type}?';
+        buf.writeln('  $nullableType $safeName;');
+        optionalFields.add(safeName);
+      }
+
+      if (i < fields.length - 1) buf.writeln();
+    }
+
+    buf.writeln();
+    _writeConstructor(buf, className, requiredFields, optionalFields);
+    buf.writeln();
+    _writeToFormDataMethod(buf, fields);
+    buf.writeln('}');
+  }
+
+  /// 生成 toFormData() 方法
+  void _writeToFormDataMethod(StringBuffer buf, List<InlineFieldInfo> fields) {
+    buf.writeln('  /// 转换为 FormData（用于 multipart/form-data 请求）');
+    buf.writeln('  FormData toFormData() {');
+    buf.writeln('    return FormData.fromMap({');
+    for (final field in fields) {
+      final safeName = dartObjectProperties.contains(field.name) ? '${field.name}Filed' : field.name;
+      buf.writeln("      '${field.jsonName}': $safeName,");
+    }
+    buf.writeln('    });');
+    buf.writeln('  }');
   }
 
   // ─── Import 收集 ──────────────────────────────────────────────

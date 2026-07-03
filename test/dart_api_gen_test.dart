@@ -70,6 +70,29 @@ void main() {
         equals('List<String>'),
       );
     });
+
+    test('maps binary field to MultipartFile only for request body', () {
+      final mapper = TypeMapper({});
+      // 请求体中的 binary 字段映射为 MultipartFile
+      expect(
+        mapper.mapType({'type': 'string', 'format': 'binary'}, forRequestBody: true),
+        equals('MultipartFile'),
+      );
+      // 非请求体中的 binary 字段映射为 String
+      expect(
+        mapper.mapType({'type': 'string', 'format': 'binary'}),
+        equals('String'),
+      );
+      // 普通 string 不受影响
+      expect(mapper.mapType({'type': 'string'}), equals('String'));
+    });
+
+    test('isBinaryField detects binary fields', () {
+      expect(TypeMapper.isBinaryField({'type': 'string', 'format': 'binary'}), isTrue);
+      expect(TypeMapper.isBinaryField({'type': 'string', 'format': 'date'}), isFalse);
+      expect(TypeMapper.isBinaryField({'type': 'string'}), isFalse);
+      expect(TypeMapper.isBinaryField({'type': 'integer', 'format': 'binary'}), isFalse);
+    });
   });
 
   group('CodeGenConfig', () {

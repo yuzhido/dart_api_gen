@@ -8,8 +8,14 @@ class TypeMapper {
 
   TypeMapper(this.schemas);
 
+  /// 判断 schema 是否为 binary 字段（文件上传）
+  static bool isBinaryField(Map<String, dynamic> schema) {
+    return schema['type'] == 'string' && schema['format'] == 'binary';
+  }
+
   /// 将 Swagger schema 映射为 Dart 类型
-  String mapType(Map<String, dynamic> schema) {
+  /// [forRequestBody] 是否为请求体，只有请求体中的 binary 字段才映射为 MultipartFile
+  String mapType(Map<String, dynamic> schema, {bool forRequestBody = false}) {
     // 处理 $ref
     if (schema.containsKey('\$ref')) {
       final ref = schema['\$ref'] as String;
@@ -47,6 +53,11 @@ class TypeMapper {
 
     // 处理基本类型
     final type = schema['type'] as String? ?? 'dynamic';
+
+    // string + binary → MultipartFile（仅请求体中的文件上传字段）
+    if (forRequestBody && type == 'string' && schema['format'] == 'binary') {
+      return 'MultipartFile';
+    }
 
     switch (type) {
       case 'string':

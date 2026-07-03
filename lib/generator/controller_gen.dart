@@ -142,13 +142,16 @@ class ControllerGenerator {
 
     // form-data 特殊处理
     if (isFormData) {
-      buf.writeln('    FormData formData = FormData.fromMap(data.toJson());');
+      buf.writeln('    final formData = data.toFormData();');
     }
 
     buf.writeln('    final response = await _dio.request(');
     buf.writeln("      '$path',");
     buf.writeln("      method: '$method',");
     buf.write(requestLogic);
+    if (isFormData) {
+      buf.writeln('      options: Options(contentType: Headers.multipartFormDataContentType),');
+    }
     buf.writeln('      cancelToken: cancelToken,');
     buf.writeln('      config: config,');
     buf.writeln('    );');

@@ -404,6 +404,7 @@ class SwaggerProcessor {
         'description': requestBody['description'] as String? ?? 'Generated from $apiPath',
         if (summary.isNotEmpty) 'summary': '$summary - 请求体',
         'tags': [tag],
+        if (isMultipart) 'x-multipart': true, // 标记为 multipart/form-data 请求体
       };
       _recordTypeUsage(schemaName, tag, typeUsageMap);
     }
