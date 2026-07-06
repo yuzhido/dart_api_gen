@@ -23,7 +23,7 @@ class EnumGenerator {
   Map<String, String> generateCommon(Set<String> enumNames) {
     final content = _buildEnumFile('通用枚举定义', enumNames);
     if (content == null) return {};
-    return {'common.dart': content};
+    return {'common_enum.dart': content};
   }
 
   /// 构建枚举文件内容，若无有效枚举则返回 null

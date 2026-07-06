@@ -203,7 +203,7 @@ Future<void> main(List<String> arguments) async {
   for (final entry in enumsByLocation.entries) {
     final locationKey = entry.key;
     for (final enumName in entry.value) {
-      enumLocationMap[enumName] = locationKey == 'common' ? 'common.dart' : '$locationKey.dart';
+      enumLocationMap[enumName] = locationKey == 'common' ? 'common_enum.dart' : '$locationKey.dart';
     }
   }
 

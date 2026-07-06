@@ -20,13 +20,13 @@
 #
 # 简写形式（直接写路径或URL，等价于下面的展开形式）:
 #   source: "./swagger.json"
-#   source: "http://example.com/api/swagger.json"
+#   source: "http://127.0.0.1:2387/swagger/all/swagger.json"
 source:
   # 远程 URL 地址
-  # url: "http://example.com/api/swagger.json"
+  # url: "http://127.0.0.1:2387/swagger/all/swagger.json"
 
   # 本地文件路径（相对于运行目录或绝对路径）
-  file: "./example/swagger.json"
+  file: './example/swagger.json'
 
 # ------------------------------------------------------------
 # 输出配置
@@ -38,7 +38,7 @@ source:
 #   output: "./lib/api"
 output:
   # 生成代码的输出目录
-  dir: "./lib/api"
+  dir: './lib/api'
 
 # ------------------------------------------------------------
 # 可选配置

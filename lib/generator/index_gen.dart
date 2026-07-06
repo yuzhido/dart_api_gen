@@ -34,7 +34,7 @@ class IndexGenerator {
   }
 
   /// 生成 enum/index.dart
-  /// [enumPaths] 所有 enum 文件的相对路径 (如 'admin/announcement.dart' 或 'common.dart')
+  /// [enumPaths] 所有 enum 文件的相对路径 (如 'admin/announcement.dart' 或 'common_enum.dart')
   String generateEnumIndex(Set<String> enumPaths) {
     return _generateExportIndex('枚举统一导出文件', enumPaths, commonFirst: true);
   }
