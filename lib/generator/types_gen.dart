@@ -231,9 +231,10 @@ class TypesGenerator {
 
     final fields = properties.entries.map((e) {
       final jsonName = e.key;
+      final dartName = toCamelCase(jsonName);
       final propSchema = e.value as Map<String, dynamic>;
       return InlineFieldInfo(
-        name: jsonName,
+        name: dartName,
         type: typeMapper.mapType(propSchema, forRequestBody: isMultipartBody),
         isRequired: required.contains(jsonName),
         description: propSchema['description'] as String? ?? '',
@@ -335,14 +336,13 @@ class TypesGenerator {
 
   /// 生成 toFormData() 方法
   void _writeToFormDataMethod(StringBuffer buf, List<InlineFieldInfo> fields) {
+    final entries = fields.map((field) {
+      final safeName = dartObjectProperties.contains(field.name) ? '${field.name}Filed' : field.name;
+      return "'${field.jsonName}': $safeName";
+    }).join(', ');
     buf.writeln('  /// 转换为 FormData（用于 multipart/form-data 请求）');
     buf.writeln('  FormData toFormData() {');
-    buf.writeln('    return FormData.fromMap({');
-    for (final field in fields) {
-      final safeName = dartObjectProperties.contains(field.name) ? '${field.name}Filed' : field.name;
-      buf.writeln("      '${field.jsonName}': $safeName,");
-    }
-    buf.writeln('    });');
+    buf.writeln('    return FormData.fromMap({$entries});');
     buf.writeln('  }');
   }
 
