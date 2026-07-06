@@ -146,22 +146,20 @@ Future<void> main(List<String> arguments) async {
   final enumNames = classification.enums;
   final objectNames = classification.objects;
 
-  // 按位置分组枚举
+  // 按位置分组枚举（key 与 TypeLocation.key 保持一致）
   final enumsByLocation = <String, Set<String>>{};
   for (final name in enumNames) {
     final loc = typeLocations[name];
     if (loc == null) continue;
-    final key = loc.isCommon ? 'common' : '${loc.area}/${loc.tagDir}';
-    enumsByLocation.putIfAbsent(key, () => {}).add(name);
+    enumsByLocation.putIfAbsent(loc.key, () => {}).add(name);
   }
 
-  // 按位置分组对象
+  // 按位置分组对象（key 与 TypeLocation.key 保持一致）
   final objectsByLocation = <String, Set<String>>{};
   for (final name in objectNames) {
     final loc = typeLocations[name];
     if (loc == null) continue;
-    final key = loc.isCommon ? 'common' : '${loc.area}/${loc.tagDir}';
-    objectsByLocation.putIfAbsent(key, () => {}).add(name);
+    objectsByLocation.putIfAbsent(loc.key, () => {}).add(name);
   }
 
   print('   发现 ${loader.apiEntries.length} 个 API 分组');
@@ -199,11 +197,21 @@ Future<void> main(List<String> arguments) async {
   final generatedTypesPaths = <String>{};
 
   // 构建 enumName → enum 文件相对路径映射
+  // key 格式：'__common__' (跨area) | '{area}/__common__' (area内共用) | '{area}/{tag}'
   final enumLocationMap = <String, String>{};
   for (final entry in enumsByLocation.entries) {
     final locationKey = entry.key;
     for (final enumName in entry.value) {
-      enumLocationMap[enumName] = locationKey == 'common' ? 'common_enum.dart' : '$locationKey.dart';
+      String enumPath;
+      if (locationKey == '__common__') {
+        enumPath = 'common_enum.dart';
+      } else if (locationKey.endsWith('/__common__')) {
+        final area = locationKey.split('/').first;
+        enumPath = '$area/common_enum.dart';
+      } else {
+        enumPath = '$locationKey.dart';
+      }
+      enumLocationMap[enumName] = enumPath;
     }
   }
 
@@ -212,7 +220,16 @@ Future<void> main(List<String> arguments) async {
   for (final entry in objectsByLocation.entries) {
     final locationKey = entry.key;
     for (final schemaName in entry.value) {
-      schemaLocationMap[schemaName] = locationKey == 'common' ? 'common/index.dart' : '$locationKey/index.dart';
+      String typePath;
+      if (locationKey == '__common__') {
+        typePath = 'common_type/index.dart';
+      } else if (locationKey.endsWith('/__common__')) {
+        final area = locationKey.split('/').first;
+        typePath = '$area/common_type/index.dart';
+      } else {
+        typePath = '$locationKey/index.dart';
+      }
+      schemaLocationMap[schemaName] = typePath;
     }
   }
 
@@ -246,7 +263,8 @@ Future<void> main(List<String> arguments) async {
       final locationKey = entry.key;
       final names = entry.value;
 
-      if (locationKey == 'common') {
+      if (locationKey == '__common__') {
+        // 跨 area 共用枚举 → enum/common_enum.dart
         Directory(p.join(absOutputDir, 'enum')).createSync(recursive: true);
         final files = enumGen.generateCommon(names);
         for (final fileEntry in files.entries) {
@@ -254,6 +272,18 @@ Future<void> main(List<String> arguments) async {
           File(filePath).writeAsStringSync(fileEntry.value);
           print('   ✅ enum/${fileEntry.key}');
           generatedEnumPaths.add(fileEntry.key);
+        }
+      } else if (locationKey.endsWith('/__common__')) {
+        // 单 area 内多 tag 共用枚举 → enum/{area}/common_enum.dart
+        final area = locationKey.split('/').first;
+        final dir = p.join(absOutputDir, 'enum', area);
+        Directory(dir).createSync(recursive: true);
+        final files = enumGen.generateCommon(names);
+        for (final fileEntry in files.entries) {
+          final absFilePath = p.join(absOutputDir, 'enum', area, fileEntry.key);
+          File(absFilePath).writeAsStringSync(fileEntry.value);
+          print('   ✅ enum/$area/${fileEntry.key}');
+          generatedEnumPaths.add('$area/${fileEntry.key}');
         }
       } else {
         final parts = locationKey.split('/');
@@ -280,20 +310,50 @@ Future<void> main(List<String> arguments) async {
       final locationKey = entry.key;
       final names = entry.value;
 
-      if (locationKey == 'common') {
-        final dir = p.join(absOutputDir, 'types', 'common');
+      if (locationKey == '__common__') {
+        // 跨 area 共用类型 → types/common_type/index.dart
+        final dir = p.join(absOutputDir, 'types', 'common_type');
         Directory(dir).createSync(recursive: true);
-        final commonEnums = enumsByLocation['common'] ?? {};
-        final content = typesGen.generateCommon(names, commonEnums, schemaLocationMap: schemaLocationMap, enumLocationMap: enumLocationMap);
+        final crossAreaEnums = enumsByLocation['__common__'] ?? {};
+        final content = typesGen.generateCommon(
+          names, crossAreaEnums,
+          filePath: 'common_type/index.dart',
+          description: '跨服务通用数据模型类型定义',
+          schemaLocationMap: schemaLocationMap,
+          enumLocationMap: enumLocationMap,
+        );
         final filePath = p.join(dir, 'index.dart');
         if (!overwrite && File(filePath).existsSync()) {
-          print('   ⏭️  跳过 types/common/index.dart (已存在)');
+          print('   ⏭️  跳过 types/common_type/index.dart (已存在)');
         } else {
           File(filePath).writeAsStringSync(content);
-          print('   ✅ types/common/index.dart');
+          print('   ✅ types/common_type/index.dart');
         }
-        generatedTypesPaths.add('common/index.dart');
+        generatedTypesPaths.add('common_type/index.dart');
+      } else if (locationKey.endsWith('/__common__')) {
+        // 单 area 内多 tag 共用类型 → types/{area}/common_type/index.dart
+        final area = locationKey.split('/').first;
+        final dir = p.join(absOutputDir, 'types', area, 'common_type');
+        Directory(dir).createSync(recursive: true);
+        final areaCommonEnums = enumsByLocation[locationKey] ?? {};
+        final relPath = '$area/common_type/index.dart';
+        final content = typesGen.generateCommon(
+          names, areaCommonEnums,
+          filePath: relPath,
+          description: 'xArea: $area 服务下通用数据模型类型定义',
+          schemaLocationMap: schemaLocationMap,
+          enumLocationMap: enumLocationMap,
+        );
+        final filePath = p.join(dir, 'index.dart');
+        if (!overwrite && File(filePath).existsSync()) {
+          print('   ⏭️  跳过 types/$relPath (已存在)');
+        } else {
+          File(filePath).writeAsStringSync(content);
+          print('   ✅ types/$relPath');
+        }
+        generatedTypesPaths.add(relPath);
       } else {
+        // 单 area 单 tag → types/{area}/{tag}/index.dart
         final parts = locationKey.split('/');
         final area = parts[0];
         final tagDir = parts[1];
@@ -355,7 +415,9 @@ Future<void> main(List<String> arguments) async {
   if (config.runBuildRunner) {
     print('');
     print('🔧 正在执行 build_runner 生成 .g.dart 文件...');
-    final buildResult = await Process.run('dart', ['run', 'build_runner', 'build', '--delete-conflicting-outputs'], workingDirectory: absOutputDir, runInShell: true);
+    // build_runner 必须在项目根目录（pubspec.yaml 所在目录）运行，否则会在输出目录生成 .dart_tool
+    final projectRoot = foundConfigPath != null ? p.dirname(p.absolute(foundConfigPath)) : Directory.current.path;
+    final buildResult = await Process.run('dart', ['run', 'build_runner', 'build', '--delete-conflicting-outputs'], workingDirectory: projectRoot, runInShell: true);
     if (buildResult.exitCode == 0) {
       print('   ✅ build_runner 执行成功');
     } else {

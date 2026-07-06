@@ -79,14 +79,22 @@ class TypesGenerator {
     return buf.toString();
   }
 
-  /// 生成 common types 文件
-  String generateCommon(Set<String> objectNames, Set<String> commonEnums, {Map<String, String> schemaLocationMap = const {}, Map<String, String> enumLocationMap = const {}}) {
-    const filePath = 'common/index.dart';
+  /// 生成共用 types 文件
+  /// [filePath] 当前文件的相对路径（用于计算 import 相对路径）
+  /// [description] 文件描述
+  String generateCommon(
+    Set<String> objectNames,
+    Set<String> commonEnums, {
+    String filePath = 'common_type/index.dart',
+    String description = '通用数据模型类型定义',
+    Map<String, String> schemaLocationMap = const {},
+    Map<String, String> enumLocationMap = const {},
+  }) {
     final buf = StringBuffer();
     final needsDio = _batchNeedsDio(objectNames, const []);
     final needsJsonAnnotation = _batchNeedsJsonAnnotation(objectNames, const []);
 
-    _writeFileHeader(buf, '通用数据模型类型定义', null);
+    _writeFileHeader(buf, description, null);
     _writeImports(buf, objectNames, filePath, commonEnums, enumLocationMap, schemaLocationMap, needsDio: needsDio, needsJsonAnnotation: needsJsonAnnotation);
 
     var isFirst = true;

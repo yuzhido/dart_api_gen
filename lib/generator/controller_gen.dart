@@ -148,7 +148,7 @@ class ControllerGenerator {
     buf.writeln('    final response = await _dio.request(');
     buf.writeln("      '$path',");
     buf.writeln("      method: '$method',");
-    buf.writeln(requestLogic);
+    buf.write(requestLogic);
     if (isFormData) {
       buf.writeln('      options: Options(contentType: Headers.multipartFormDataContentType),');
     }

@@ -12,14 +12,27 @@ import '../utils/ref_utils.dart';
 
 /// 类型位置信息
 class TypeLocation {
-  final String area; // 如 "admin"、"basic"、"common"
-  final String? tagDir; // 如 "announcement"，common 时为 null
-  final bool isCommon;
+  final String area; // 如 "admin"、"basic"
+  final String? tagDir; // 如 "announcement"，共用时为 null
+  final bool isCrossAreaCommon; // 跨 area 共用
+  final bool isAreaCommon; // 单 area 内多 tag 共用
 
-  TypeLocation({required this.area, this.tagDir, this.isCommon = false});
+  TypeLocation({
+    required this.area,
+    this.tagDir,
+    this.isCrossAreaCommon = false,
+    this.isAreaCommon = false,
+  });
 
   /// 位置键（用于分组）
-  String get key => isCommon ? 'common' : '$area/$tagDir';
+  /// - 单 area 单 tag: 'admin/announcement'
+  /// - 单 area 多 tag 共用: 'admin/__common__'
+  /// - 跨 area 共用: '__common__'
+  String get key {
+    if (isCrossAreaCommon) return '__common__';
+    if (isAreaCommon) return '$area/__common__';
+    return '$area/$tagDir';
+  }
 }
 
 /// Controller 位置信息
@@ -230,10 +243,16 @@ class ProcessedSwaggerLoader {
     final result = <String, TypeLocation>{};
     for (final entry in _typesInfo.entries) {
       final info = entry.value;
-      if (info.xArea.length == 1 && info.tags.length == 1) {
-        result[entry.key] = TypeLocation(area: info.xArea.first.toLowerCase(), tagDir: tagToFileName(info.tags.first));
+      final areas = info.xArea.map((a) => a.toLowerCase()).toSet();
+      if (areas.length == 1 && info.tags.length == 1) {
+        // 单 area + 单 tag → 具体目录
+        result[entry.key] = TypeLocation(area: areas.first, tagDir: tagToFileName(info.tags.first));
+      } else if (areas.length == 1) {
+        // 单 area + 多 tag → area 内共用目录
+        result[entry.key] = TypeLocation(area: areas.first, isAreaCommon: true);
       } else {
-        result[entry.key] = TypeLocation(area: 'common', isCommon: true);
+        // 多 area → 跨 area 共用目录
+        result[entry.key] = TypeLocation(area: 'common', isCrossAreaCommon: true);
       }
     }
     return result;

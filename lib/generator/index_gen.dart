@@ -11,7 +11,7 @@ class IndexGenerator {
   }
 
   /// 生成 types/index.dart
-  /// [typePaths] 所有 types 文件的相对路径 (如 'admin/announcement/index.dart' 或 'common/index.dart')
+  /// [typePaths] 所有 types 文件的相对路径 (如 'admin/announcement/index.dart' 或 'common_type/index.dart' 或 'admin/common_type/index.dart')
   String generateTypesIndex(Set<String> typePaths) {
     return _generateExportIndex('数据模型统一导出文件', typePaths, commonFirst: true);
   }
@@ -34,7 +34,7 @@ class IndexGenerator {
   }
 
   /// 生成 enum/index.dart
-  /// [enumPaths] 所有 enum 文件的相对路径 (如 'admin/announcement.dart' 或 'common_enum.dart')
+  /// [enumPaths] 所有 enum 文件的相对路径 (如 'admin/announcement.dart' 或 'common_enum.dart' 或 'admin/common_enum.dart')
   String generateEnumIndex(Set<String> enumPaths) {
     return _generateExportIndex('枚举统一导出文件', enumPaths, commonFirst: true);
   }
