@@ -8,13 +8,13 @@ String computeRelativePath(String fromFile, String toFile) {
   final toParts = toFile.split('/');
 
   // 找到共同前缀长度（-1 因为最后是文件名）
-  var commonLen = 0;
-  while (commonLen < fromParts.length - 1 && commonLen < toParts.length - 1 && fromParts[commonLen] == toParts[commonLen]) {
-    commonLen++;
+  var commonLength = 0;
+  while (commonLength < fromParts.length - 1 && commonLength < toParts.length - 1 && fromParts[commonLength] == toParts[commonLength]) {
+    commonLength++;
   }
 
-  final upCount = fromParts.length - 1 - commonLen;
+  final upCount = fromParts.length - 1 - commonLength;
   final upPath = upCount > 0 ? '../' * upCount : '';
-  final downPath = toParts.skip(commonLen).join('/');
+  final downPath = toParts.skip(commonLength).join('/');
   return '$upPath$downPath';
 }

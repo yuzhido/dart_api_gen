@@ -166,7 +166,7 @@ Future<void> main(List<String> arguments) async {
   print('   发现 ${objectNames.length} 个数据模型, ${enumNames.length} 个枚举');
   print('   位置分组: ${objectsByLocation.length} 个 types 位置, ${enumsByLocation.length} 个 enum 位置');
 
-  // 7. Inline DTOs 已在 processSwagger.json 的 typesInfo 中，无需额外收集
+  // 7. Inline DTO 已在 processSwagger.json 的 typesInfo 中，无需额外收集
 
   // 8. 生成代码文件
   print('🔨 正在生成代码...');

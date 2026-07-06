@@ -327,11 +327,11 @@ class SwaggerProcessor {
     final tagDesc = tagDescriptions[tag] ?? '';
     var typeDescription = '';
     if (tagDesc.isNotEmpty && summary.isNotEmpty) {
-      typeDescription = '$tagDesc${summary}请求参数';
+      typeDescription = '$tagDesc$summary请求参数';
     } else if (tagDesc.isNotEmpty) {
       typeDescription = '$tagDesc请求参数';
     } else if (summary.isNotEmpty) {
-      typeDescription = '${summary}请求参数';
+      typeDescription = '$summary请求参数';
     }
 
     // 添加到 typesInfo

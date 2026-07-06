@@ -81,7 +81,7 @@ class EnumGenerator {
       buf.writeln('  @JsonValue($value)');
       // 转义 name 中的 $ 符号，避免 Dart 字符串插值
       final escapedName = name.replaceAll(r'$', r'\$');
-      buf.writeln("  $name(name: '$escapedName', value: $value, text: '$text', color: Color(0xff${colorHex.toUpperCase()}), bgColor: Color(0xff${bgColorHex})),");
+      buf.writeln("  $name(name: '$escapedName', value: $value, text: '$text', color: Color(0xff${colorHex.toUpperCase()}), bgColor: Color(0xff$bgColorHex)),");
       buf.writeln();
     }
 

@@ -42,14 +42,14 @@ class TypesGenerator {
     String tagDir,
     Set<String> schemaNames,
     Set<String> locationEnums,
-    List<InlineDtoInfo> inlineDtos, {
+    List<InlineDtoInfo> inlineDtoList, {
     Map<String, String> schemaLocationMap = const {},
     Map<String, String> enumLocationMap = const {},
   }) {
     final filePath = '$area/$tagDir/index.dart';
     final buf = StringBuffer();
-    final needsDio = _batchNeedsDio(schemaNames, inlineDtos);
-    final needsJsonAnnotation = _batchNeedsJsonAnnotation(schemaNames, inlineDtos);
+    final needsDio = _batchNeedsDio(schemaNames, inlineDtoList);
+    final needsJsonAnnotation = _batchNeedsJsonAnnotation(schemaNames, inlineDtoList);
 
     _writeFileHeader(buf, 'xArea: $area 服务下相关数据模型类型定义', tagDir);
     _writeImports(buf, schemaNames, filePath, locationEnums, enumLocationMap, schemaLocationMap, needsDio: needsDio, needsJsonAnnotation: needsJsonAnnotation);
@@ -66,8 +66,8 @@ class TypesGenerator {
       isFirst = false;
     }
 
-    // 生成 inline DTOs
-    for (final dto in inlineDtos) {
+    // 生成 inline DTO 列表
+    for (final dto in inlineDtoList) {
       buf.writeln();
       if (dto.isTypedef) {
         buf.writeln('typedef ${dto.className} = ${dto.typedefType};');
@@ -267,9 +267,9 @@ class TypesGenerator {
     return fields.any((f) => f.type == 'MultipartFile');
   }
 
-  /// 判断一批 schema + inlineDtos 中是否有需要 dio import 的 binary 字段
+  /// 判断一批 schema + inlineDtoList 中是否有需要 dio import 的 binary 字段
   /// 只有 multipart/form-data 请求体才会生成 multipart DTO，需要 dio import
-  bool _batchNeedsDio(Set<String> schemaNames, List<InlineDtoInfo> inlineDtos) {
+  bool _batchNeedsDio(Set<String> schemaNames, List<InlineDtoInfo> inlineDtoList) {
     for (final name in schemaNames) {
       final schema = allSchemas[name];
       if (schema == null) continue;
@@ -280,11 +280,11 @@ class TypesGenerator {
         return true;
       }
     }
-    return inlineDtos.any((dto) => dto.className.endsWith('BodyDto') && _fieldsHasBinary(dto.fields));
+    return inlineDtoList.any((dto) => dto.className.endsWith('BodyDto') && _fieldsHasBinary(dto.fields));
   }
 
-  /// 判断一批 schema + inlineDtos 中是否有需要 json_annotation 的标准 DTO
-  bool _batchNeedsJsonAnnotation(Set<String> schemaNames, List<InlineDtoInfo> inlineDtos) {
+  /// 判断一批 schema + inlineDtoList 中是否有需要 json_annotation 的标准 DTO
+  bool _batchNeedsJsonAnnotation(Set<String> schemaNames, List<InlineDtoInfo> inlineDtoList) {
     for (final name in schemaNames) {
       final schema = allSchemas[name];
       if (schema == null) continue;
@@ -299,7 +299,7 @@ class TypesGenerator {
         if (!isMultipartBody) return true; // 有标准 DTO
       }
     }
-    return inlineDtos.any((dto) => !dto.isTypedef && !(dto.className.endsWith('BodyDto') && _fieldsHasBinary(dto.fields)));
+    return inlineDtoList.any((dto) => !dto.isTypedef && !(dto.className.endsWith('BodyDto') && _fieldsHasBinary(dto.fields)));
   }
 
   /// 生成 multipart/form-data DTO class（无 @JsonSerializable，带 toFormData）
