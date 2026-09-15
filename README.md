@@ -25,7 +25,7 @@
 
 ```yaml
 dev_dependencies:
-  dart_api_gen: ^1.0.0
+  dart_api_gen: ^1.1.0
 ```
 
 然后拉取依赖：
@@ -82,7 +82,7 @@ dependencies:
   # ... 业务依赖
 
 dev_dependencies:
-  dart_api_gen: ^1.0.0
+  dart_api_gen: ^1.1.0
 
 dependency_overrides:
   dart_api_gen:
@@ -97,7 +97,7 @@ dependency_overrides:
 dev_dependencies:
   dart_api_gen:
     git:
-      url: https://github.com/<your-org>/dart_api_gen.git
+      url: https://github.com/yuzhido/dart_api_gen.git
       ref: main # 分支名 / tag / commit hash
 ```
 
@@ -203,7 +203,7 @@ dart run dart_api_gen init -f
 **步骤 1：克隆源码到本地**
 
 ```bash
-git clone https://github.com/<your-org>/dart_api_gen.git
+git clone https://github.com/yuzhido/dart_api_gen.git
 cd dart_api_gen
 dart pub get
 ```
