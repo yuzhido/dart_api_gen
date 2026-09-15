@@ -8,6 +8,7 @@ import 'package:args/args.dart';
 import 'package:path/path.dart' as p;
 
 import 'package:dart_api_gen/utils/type_mapper.dart';
+import 'package:dart_api_gen/utils/loading_indicator.dart';
 import 'package:dart_api_gen/generator/enum_gen.dart';
 import 'package:dart_api_gen/generator/types_gen.dart';
 import 'package:dart_api_gen/generator/index_gen.dart';
@@ -43,6 +44,7 @@ Future<void> main(List<String> arguments) async {
   final argParser = ArgParser()
     ..addOption('url', abbr: 'u', help: 'Swagger JSON URL (覆盖配置文件)')
     ..addOption('file', abbr: 'f', help: 'Swagger JSON 文件路径 (覆盖配置文件)')
+    ..addOption('env', abbr: 'e', help: '选择环境: local/dev/testing/production (取配置 environments 中对应 URL)')
     ..addOption('output', abbr: 'o', help: '输出目录路径 (覆盖配置文件)')
     ..addOption('config', abbr: 'c', help: '配置文件路径', defaultsTo: configFileName)
     ..addFlag('help', abbr: 'h', help: '显示帮助信息', negatable: false);
@@ -75,7 +77,7 @@ Future<void> main(List<String> arguments) async {
   }
 
   // 2. CLI 参数覆盖配置
-  config = config.mergeWithCli(url: results['url'] as String?, file: results['file'] as String?, output: results['output'] as String?);
+  config = config.mergeWithCli(url: results['url'] as String?, file: results['file'] as String?, output: results['output'] as String?, env: results['env'] as String?);
 
   // 3. 验证配置
   final configError = config.error;
@@ -96,11 +98,15 @@ Future<void> main(List<String> arguments) async {
   print('📖 正在解析 Swagger JSON...');
   final parser = SwaggerParser();
   if (url != null) {
+    if (config.selectedEnv != null) {
+      print('   🌍 环境: ${config.selectedEnv}');
+    }
     print('   URL: $url');
-    await parser.loadFromUrl(url);
+    await LoadingIndicator.run(() => parser.loadFromUrl(url), detail: url);
   } else {
-    print('   文件: $filePath');
-    await parser.loadFromFile(filePath!);
+    final file = filePath!;
+    print('   文件: $file');
+    await LoadingIndicator.run(() => parser.loadFromFile(file), detail: file);
   }
 
   // 保存原始 swagger JSON 到输出目录的 temp-swagger-data/index.json
@@ -316,7 +322,8 @@ Future<void> main(List<String> arguments) async {
         Directory(dir).createSync(recursive: true);
         final crossAreaEnums = enumsByLocation['__common__'] ?? {};
         final content = typesGen.generateCommon(
-          names, crossAreaEnums,
+          names,
+          crossAreaEnums,
           filePath: 'common_type/index.dart',
           description: '跨服务通用数据模型类型定义',
           schemaLocationMap: schemaLocationMap,
@@ -338,7 +345,8 @@ Future<void> main(List<String> arguments) async {
         final areaCommonEnums = enumsByLocation[locationKey] ?? {};
         final relPath = '$area/common_type/index.dart';
         final content = typesGen.generateCommon(
-          names, areaCommonEnums,
+          names,
+          areaCommonEnums,
           filePath: relPath,
           description: 'xArea: $area 服务下通用数据模型类型定义',
           schemaLocationMap: schemaLocationMap,

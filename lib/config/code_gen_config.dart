@@ -48,6 +48,14 @@ class CodeGenConfig {
   /// false: 仅生成代码，不执行 build_runner（需手动运行）
   final bool runBuildRunner;
 
+  /// 多环境 Swagger URL 配置
+  /// 键为环境名（仅限 local/dev/testing/production），值为对应环境的 URL
+  final Map<String, String> environments;
+
+  /// 当前选中的环境名
+  /// 由 --env 参数指定，或未指定时按固定顺序回退选中；null 表示未使用环境
+  final String? selectedEnv;
+
   const CodeGenConfig({
     this.sourceUrl,
     this.sourceFile,
@@ -59,6 +67,8 @@ class CodeGenConfig {
     this.generateIndex = true,
     this.overwrite = true,
     this.runBuildRunner = true,
+    this.environments = const {},
+    this.selectedEnv,
   });
 
   /// 从 YAML 文件加载配置
@@ -81,10 +91,21 @@ class CodeGenConfig {
     // 解析 source 部分
     String? sourceUrl;
     String? sourceFile;
+    Map<String, String> environments = {};
     final source = yaml['source'];
     if (source is YamlMap) {
       sourceUrl = source['url'] as String?;
       sourceFile = source['file'] as String?;
+      // 多环境 URL 配置：source.environments（仅接受字符串值）
+      final envs = source['environments'];
+      if (envs is YamlMap) {
+        for (final entry in envs.entries) {
+          final value = entry.value;
+          if (value is String) {
+            environments[entry.key.toString()] = value;
+          }
+        }
+      }
     } else if (source is String) {
       // 简写形式: source: "http://..." 或 source: "./swagger.json"
       if (source.startsWith('http://') || source.startsWith('https://')) {
@@ -133,15 +154,56 @@ class CodeGenConfig {
       generateIndex: generateIndex,
       overwrite: overwrite,
       runBuildRunner: runBuildRunner,
+      environments: environments,
     );
   }
 
   /// 用 CLI 参数覆盖配置（CLI 优先级更高）
-  /// 当指定 url 时清除 file，指定 file 时清除 url
-  CodeGenConfig mergeWithCli({String? url, String? file, String? output}) {
+  ///
+  /// 来源解析优先级（从高到低）：
+  /// 1. --url / --file：显式指定，覆盖一切（二者互斥，沿用原有逻辑）
+  /// 2. --env <name>：取 environments[name] 作为 URL（合法性/存在性由 [error] 校验）
+  /// 3. 未传上述参数但配置了 environments：按固定顺序 local → dev → testing →
+  ///    production 取第一个已定义的环境
+  /// 4. 回退到 source.url / source.file（向后兼容旧配置）
+  CodeGenConfig mergeWithCli({String? url, String? file, String? output, String? env}) {
+    String? resolvedUrl = sourceUrl;
+    String? resolvedFile = sourceFile;
+    String? resolvedEnv = env;
+
+    if (url != null) {
+      // --url 显式覆盖，优先级最高
+      resolvedUrl = url;
+      resolvedFile = null;
+      resolvedEnv = null;
+    } else if (file != null) {
+      // --file 显式覆盖
+      resolvedFile = file;
+      resolvedUrl = null;
+      resolvedEnv = null;
+    } else if (env != null) {
+      // --env 指定环境：解析对应 URL（未定义时保留原来源，由 error 报错）
+      final envUrl = environments[env];
+      if (envUrl != null) {
+        resolvedUrl = envUrl;
+        resolvedFile = null;
+      }
+    } else if (environments.isNotEmpty) {
+      // 未指定来源但配置了 environments：按固定顺序取第一个已定义的环境
+      for (final name in swagger_constants.allowedEnvironments) {
+        final envUrl = environments[name];
+        if (envUrl != null) {
+          resolvedUrl = envUrl;
+          resolvedFile = null;
+          resolvedEnv = name;
+          break;
+        }
+      }
+    }
+
     return CodeGenConfig(
-      sourceUrl: url ?? (file != null ? null : sourceUrl),
-      sourceFile: file ?? (url != null ? null : sourceFile),
+      sourceUrl: resolvedUrl,
+      sourceFile: resolvedFile,
       outputDir: output ?? outputDir,
       saveSwaggerJson: saveSwaggerJson,
       generateControllers: generateControllers,
@@ -150,6 +212,8 @@ class CodeGenConfig {
       generateIndex: generateIndex,
       overwrite: overwrite,
       runBuildRunner: runBuildRunner,
+      environments: environments,
+      selectedEnv: resolvedEnv,
     );
   }
 
@@ -167,8 +231,26 @@ class CodeGenConfig {
 
   /// 获取错误信息
   String? get error {
+    // 1. --env / 回退选中的环境名合法性
+    final env = selectedEnv;
+    if (env != null) {
+      if (!swagger_constants.allowedEnvironments.contains(env)) {
+        return '无效的环境名: $env，仅支持 ${swagger_constants.allowedEnvironments.join(' / ')}';
+      }
+      if (!environments.containsKey(env)) {
+        final available = environments.keys.isEmpty ? '配置中未定义任何 source.environments' : '可用环境: ${environments.keys.join(', ')}';
+        return '环境 $env 未在配置中定义（$available）';
+      }
+    }
+    // 2. environments 的键必须是允许的环境名
+    for (final key in environments.keys) {
+      if (!swagger_constants.allowedEnvironments.contains(key)) {
+        return 'source.environments 中存在无效环境名: $key，仅支持 ${swagger_constants.allowedEnvironments.join(' / ')}';
+      }
+    }
+    // 3. 原有来源校验
     if (!isValid) {
-      return '请指定 Swagger JSON 来源：在配置文件中设置 source.url 或 source.file，或使用 --url/--file 参数';
+      return '请指定 Swagger JSON 来源：在配置文件中设置 source.url / source.file / source.environments，或使用 --url/--file/--env 参数';
     }
     if (sourceUrl != null && sourceFile != null) {
       return 'source.url 和 source.file 不能同时指定，请只保留一个';
@@ -183,8 +265,15 @@ class CodeGenConfig {
   String toString() {
     final buffer = StringBuffer();
     buffer.writeln('CodeGenConfig:');
+    if (selectedEnv != null) buffer.writeln('  source.env: $selectedEnv');
     if (sourceUrl != null) buffer.writeln('  source.url: $sourceUrl');
     if (sourceFile != null) buffer.writeln('  source.file: $sourceFile');
+    if (environments.isNotEmpty) {
+      buffer.writeln('  source.environments:');
+      for (final entry in environments.entries) {
+        buffer.writeln('    ${entry.key}: ${entry.value}');
+      }
+    }
     buffer.writeln('  output.dir: $outputDir');
     buffer.writeln('  options.save_swagger_json: $saveSwaggerJson');
     buffer.writeln('  options.generate_controllers: $generateControllers');

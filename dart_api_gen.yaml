@@ -8,13 +8,17 @@
 #      dart run bin/dart_api_gen.dart -c path/to/dart_api_gen.yaml
 #   4. CLI 参数可覆盖配置文件中的值:
 #      dart run bin/dart_api_gen.dart -o ./lib/generated
+#   5. 配置了 environments 后，可用 --env 选择使用哪个环境的 URL:
+#      dart run bin/dart_api_gen.dart --env production
 # ============================================================
 
 # ------------------------------------------------------------
-# Swagger JSON 来源配置（二选一）
+# Swagger JSON 来源配置
 # ------------------------------------------------------------
 # 方式1: 远程 URL —— 从 HTTP 接口获取 Swagger JSON（推荐用于 CI/CD）
 # 方式2: 本地文件 —— 读取本地 Swagger JSON 文件（推荐用于开发调试）
+# 方式3: 多环境 URL —— 为 local/dev/testing/production 各配一个 URL，
+#         运行时用 --env <name> 选择使用哪个环境（见下方 environments）
 #
 # 注意: url 和 file 只能二选一，不能同时配置
 #
@@ -27,6 +31,17 @@ source:
 
   # 本地文件路径（相对于运行目录或绝对路径）
   file: './example/swagger.json'
+
+  # 多环境 URL 配置（可选）
+  # 键只能是 local / dev / testing / production，值为对应环境的 Swagger URL
+  # 用法: dart run bin/dart_api_gen.dart --env dev
+  # 未指定 --env 时，按 local → dev → testing → production 顺序取第一个已定义的环境
+  # 优先级: --url/--file > --env > environments(固定顺序回退) > source.url/source.file
+  # environments:
+  #   local: "http://127.0.0.1:2387/swagger/all/swagger.json"
+  #   dev: "http://dev.example.com/swagger.json"
+  #   testing: "http://test.example.com/swagger.json"
+  #   production: "https://api.example.com/swagger.json"
 
 # ------------------------------------------------------------
 # 输出配置

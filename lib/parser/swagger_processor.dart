@@ -17,9 +17,15 @@ import '../utils/media_type_utils.dart';
 class SwaggerProcessor {
   /// 处理原始 Swagger JSON，返回处理后的 processSwagger 数据结构
   Map<String, dynamic> process(Map<String, dynamic> swaggerDoc) {
-    final paths = swaggerDoc['paths'] as Map<String, dynamic>? ?? {};
+    final rawPaths = swaggerDoc['paths'] as Map<String, dynamic>? ?? {};
     final components = swaggerDoc['components'] as Map<String, dynamic>? ?? {};
     final schemas = components['schemas'] as Map<String, dynamic>? ?? {};
+    final parameterDefs = (components['parameters'] as Map<String, dynamic>?) ?? const <String, dynamic>{};
+
+    // Phase 0: 深拷贝 paths，解引用 parameter-level $ref (#/components/parameters/*)
+    // 避免污染调用方输入，同时让后续 Phase 直接看到已展开的参数定义
+    final paths = jsonDecode(jsonEncode(rawPaths)) as Map<String, dynamic>;
+    _resolveParameterRefs(paths, parameterDefs);
 
     // 提取 tag 描述映射
     final tagDescriptions = <String, String>{};
@@ -211,6 +217,56 @@ class SwaggerProcessor {
     return processedSwagger;
   }
 
+  // ─── Parameter 级 $ref 解引用 ────────────────────────────────
+
+  /// 遍历 paths 下所有 parameters（path-level 与 operation-level），
+  /// 将 {$ref: '#/components/parameters/Xxx'} 替换为 components.parameters.Xxx 的实际内容。
+  /// 支持嵌套引用与环检测。
+  void _resolveParameterRefs(Map<String, dynamic> paths, Map<String, dynamic> parameterDefs) {
+    if (parameterDefs.isEmpty) return;
+    for (final pathItem in paths.values) {
+      if (pathItem is! Map<String, dynamic>) continue;
+      _replaceParamList(pathItem['parameters'], parameterDefs);
+      for (final method in httpMethods) {
+        final op = pathItem[method];
+        if (op is Map<String, dynamic>) {
+          _replaceParamList(op['parameters'], parameterDefs);
+        }
+      }
+    }
+  }
+
+  /// 就地替换 parameters 列表中的 $ref 项
+  void _replaceParamList(dynamic params, Map<String, dynamic> defs) {
+    if (params is! List) return;
+    for (var i = 0; i < params.length; i++) {
+      final p = params[i];
+      if (p is! Map<String, dynamic>) continue;
+      final ref = p['\$ref'] as String?;
+      if (ref == null) continue;
+      final resolved = _resolveParamRef(ref, defs, <String>{});
+      if (resolved != null) params[i] = resolved;
+    }
+  }
+
+  /// 递归解析单个 parameter $ref，返回展开后的参数定义副本；无法解析时返回 null
+  Map<String, dynamic>? _resolveParamRef(String ref, Map<String, dynamic> defs, Set<String> visiting) {
+    const prefix = '#/components/parameters/';
+    if (!ref.startsWith(prefix)) return null;
+    final name = ref.substring(prefix.length);
+    if (name.isEmpty || visiting.contains(name)) return null; // 环检测
+    final resolved = defs[name];
+    if (resolved is! Map<String, dynamic>) return null;
+    final copy = jsonDecode(jsonEncode(resolved)) as Map<String, dynamic>;
+    // 若解析后仍是纯 $ref（嵌套引用），继续递归
+    final nestedRef = copy['\$ref'] as String?;
+    if (nestedRef != null) {
+      final nested = _resolveParamRef(nestedRef, defs, {...visiting, name});
+      if (nested != null) return nested;
+    }
+    return copy;
+  }
+
   // ─── 类型引用收集 ───────────────────────────────────────────
 
   void _collectRefsFromRequestBody(Map<String, dynamic> operation, String tag, Map<String, Set<String>> usageMap) {
@@ -314,13 +370,31 @@ class SwaggerProcessor {
     for (final param in queryParams) {
       final paramName = param['name'] as String;
       final paramSchema = param['schema'] as Map<String, dynamic>? ?? {};
-      properties[paramName] = {
-        'type': paramSchema['type'] ?? 'string',
-        if (paramSchema.containsKey('format')) 'format': paramSchema['format'],
-        if (param.containsKey('description')) 'description': param['description'],
-        if (param['required'] == true) 'required': true,
-        'in': 'query',
-      };
+
+      final property = <String, dynamic>{};
+      // 保留 schema 级 $ref（枚举/DTO 引用），交给 TypeMapper 映射为对应 Dart 类型
+      if (paramSchema.containsKey('\$ref')) {
+        property['\$ref'] = paramSchema['\$ref'];
+      } else if (paramSchema['type'] == 'array') {
+        // 数组类型：保留 items 结构（items 可能含 $ref）
+        property['type'] = 'array';
+        final items = paramSchema['items'];
+        if (items is Map<String, dynamic>) {
+          property['items'] = items.containsKey('\$ref')
+              ? {'\$ref': items['\$ref']}
+              : {'type': items['type'] ?? 'string', if (items.containsKey('format')) 'format': items['format']};
+        }
+        if (paramSchema.containsKey('format')) property['format'] = paramSchema['format'];
+      } else {
+        property['type'] = paramSchema['type'] ?? 'string';
+        if (paramSchema.containsKey('format')) property['format'] = paramSchema['format'];
+      }
+
+      if (param.containsKey('description')) property['description'] = param['description'];
+      if (param['required'] == true) property['required'] = true;
+      property['in'] = 'query';
+
+      properties[paramName] = property;
     }
 
     // 生成类型描述
