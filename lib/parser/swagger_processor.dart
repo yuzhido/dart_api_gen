@@ -13,6 +13,7 @@ import 'dart:convert';
 import '../constants/swagger_constants.dart';
 import '../utils/ref_utils.dart';
 import '../utils/media_type_utils.dart';
+import '../utils/type_mapper.dart';
 
 class SwaggerProcessor {
   /// 处理原始 Swagger JSON，返回处理后的 processSwagger 数据结构
@@ -463,7 +464,12 @@ class SwaggerProcessor {
 
     // 简单类型 body（integer/string/boolean/number）不提升到 typesInfo，保持原始结构
     final firstMediaType = isMultipart ? content['multipart/form-data'] as Map<String, dynamic>? : selectMediaType(content);
-    final schema = firstMediaType?['schema'] as Map<String, dynamic>?;
+    final rawSchema = firstMediaType?['schema'] as Map<String, dynamic>?;
+
+    // IFormFile 特征识别：后端把 IFormFile 直接序列化为对象时，重写为单文件 binary schema
+    // 命中后下游 types_gen / controller_gen 无需任何改动即可正确生成 MultipartFile + toFormData
+    final schema = (isMultipart && rawSchema != null && _isIFormFileLikeSchema(rawSchema)) ? _buildSingleFileSchema() : rawSchema;
+
     if (schema != null && _isSimpleTypeSchema(schema)) {
       // 保留原始 body 结构，controller_gen 会通过 TypeMapper 映射为简单 Dart 类型
       return _normalizeSimpleBody(requestBody, content);
@@ -724,6 +730,33 @@ class SwaggerProcessor {
     final type = schema['type'] as String?;
     return type == 'integer' || type == 'number' || type == 'string' || type == 'boolean';
   }
+
+  /// 判断 schema 是否为 IFormFile 序列化产物
+  /// 命中条件（全部满足）：
+  ///   1. type == 'object' 且无 $ref
+  ///   2. properties 非空且不含任何 format: binary 字段
+  ///   3. properties 键集合包含全部 6 个 IFormFile 特征字段
+  /// 后端若已正确声明 binary 字段则不会命中（避免重写已正确的 schema）
+  bool _isIFormFileLikeSchema(Map<String, dynamic> schema) {
+    if (schema.containsKey('\$ref')) return false;
+    if (schema['type'] != 'object') return false;
+    final props = schema['properties'] as Map<String, dynamic>?;
+    if (props == null || props.isEmpty) return false;
+    for (final v in props.values) {
+      if (v is Map<String, dynamic> && TypeMapper.isBinaryField(v)) return false;
+    }
+    return props.keys.toSet().containsAll(iFormFileSignatureFields);
+  }
+
+  /// 构造重写后的单文件 schema（type: object + 单个 binary 字段）
+  /// 下游 types_gen 会因 binary 字段自动生成 MultipartFile 类型与 toFormData() 方法
+  Map<String, dynamic> _buildSingleFileSchema() => {
+    'type': 'object',
+    'properties': {
+      defaultMultipartFileFieldName: {'type': 'string', 'format': 'binary', 'description': '上传的文件'},
+    },
+    'required': [defaultMultipartFileFieldName],
+  };
 
   /// 简单类型 body 标准化输出（不提升到 typesInfo，保留原始 schema）
   Map<String, dynamic> _normalizeSimpleBody(Map<String, dynamic> requestBody, Map<String, dynamic> content) {
