@@ -58,14 +58,14 @@ class EnumGenerator {
 
     // 注释
     if (description.isNotEmpty) {
-      buf.writeln('/// $description');
+      buf.writeln('/// ${toSingleLine(description)}');
     }
 
     buf.writeln('enum $className {');
 
     // 生成每个枚举值
     for (var i = 0; i < enumValues.length; i++) {
-      final value = enumValues[i] is int ? enumValues[i] as int : int.tryParse(enumValues[i].toString()) ?? i;
+      final value = _resolveEnumValue(enumValues[i], i);
       final info = valueMap[value];
       // 使用 camelCase (首字母小写，其余不变)，和 TS 版本一致
       final rawName = info != null ? (info.name[0].toLowerCase() + info.name.substring(1)) : 'value$value';
@@ -79,9 +79,10 @@ class EnumGenerator {
       final bgColorHex = bgColor.toRadixString(16).substring(2).padLeft(6, '0');
 
       buf.writeln('  @JsonValue($value)');
-      // 转义 name 中的 $ 符号，避免 Dart 字符串插值
-      final escapedName = name.replaceAll(r'$', r'\$');
-      buf.writeln("  $name(name: '$escapedName', value: $value, text: '$text', color: Color(0xff${colorHex.toUpperCase()}), bgColor: Color(0xff$bgColorHex)),");
+      // 转义字符串中的特殊字符，避免破坏生成的 Dart 字面量
+      final escapedName = _escapeDartString(name);
+      final escapedText = _escapeDartString(toSingleLine(text));
+      buf.writeln("  $name(name: '$escapedName', value: $value, text: '$escapedText', color: Color(0xff${colorHex.toUpperCase()}), bgColor: Color(0xff$bgColorHex)),");
       buf.writeln();
     }
 
@@ -108,8 +109,8 @@ class EnumGenerator {
     buf.writeln('  // 添加静态方法获取枚举列表');
     buf.writeln('  static List<$className> list() {');
     final names = <String>[];
-    for (final value in enumValues) {
-      final v = value is int ? value : int.tryParse(value.toString()) ?? 0;
+    for (var i = 0; i < enumValues.length; i++) {
+      final v = _resolveEnumValue(enumValues[i], i);
       final info = valueMap[v];
       final rawName = info != null ? (info.name[0].toLowerCase() + info.name.substring(1)) : 'value$v';
       names.add(safeEnumName(rawName));
@@ -117,5 +118,15 @@ class EnumGenerator {
     buf.writeln('    return [${names.map((n) => '$className.$n').join(', ')}];');
     buf.writeln('  }');
     buf.writeln('}');
+  }
+
+  /// 解析枚举元素对应的整数值：数字字面量直接使用，否则回退为元素索引
+  int _resolveEnumValue(dynamic raw, int index) {
+    return raw is int ? raw : int.tryParse(raw.toString()) ?? index;
+  }
+
+  /// 转义 Dart 单引号字符串中的反斜杠、单引号和 $ 符号
+  String _escapeDartString(String text) {
+    return text.replaceAll('\\', r'\\').replaceAll("'", r"\'").replaceAll(r'$', r'\$');
   }
 }

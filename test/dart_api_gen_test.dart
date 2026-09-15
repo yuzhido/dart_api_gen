@@ -1,5 +1,6 @@
 import 'package:test/test.dart';
 import 'package:dart_api_gen/utils/naming.dart';
+import 'package:dart_api_gen/utils/ref_utils.dart';
 import 'package:dart_api_gen/utils/type_mapper.dart';
 import 'package:dart_api_gen/config/code_gen_config.dart';
 
@@ -26,9 +27,14 @@ void main() {
       expect(tagToFileName('ApiGroup'), equals('api_group'));
     });
 
-    test('schemaToClassName adds Dto suffix', () {
+    test('schemaToClassName always adds Dto suffix', () {
       expect(schemaToClassName('DemoUser'), equals('DemoUserDto'));
-      expect(schemaToClassName('DemoUserDto'), equals('DemoUserDto'));
+      expect(schemaToClassName('DemoUserDto'), equals('DemoUserDtoDto'));
+    });
+
+    test('ensureDtoSuffix always appends Dto', () {
+      expect(ensureDtoSuffix('AssetConfigRetirement'), equals('AssetConfigRetirementDto'));
+      expect(ensureDtoSuffix('AssetConfigRetirementDto'), equals('AssetConfigRetirementDtoDto'));
     });
 
     test('enumSchemaToClassName adds Enum suffix', () {
@@ -43,14 +49,8 @@ void main() {
     });
 
     test('inlineDtoName generates correct name', () {
-      expect(
-        inlineDtoName('Captcha', '/api/admin/captcha/generate'),
-        equals('CaptchaGenerateDto'),
-      );
-      expect(
-        inlineDtoName('DocumentGroup', '/api/admin/document-group/batch-delete'),
-        equals('DocumentGroupBatchDeleteDto'),
-      );
+      expect(inlineDtoName('Captcha', '/api/admin/captcha/generate'), equals('CaptchaGenerateDto'));
+      expect(inlineDtoName('DocumentGroup', '/api/admin/document-group/batch-delete'), equals('DocumentGroupBatchDeleteDto'));
     });
   });
 
@@ -66,7 +66,10 @@ void main() {
     test('maps array types correctly', () {
       final mapper = TypeMapper({});
       expect(
-        mapper.mapType({'type': 'array', 'items': {'type': 'string'}}),
+        mapper.mapType({
+          'type': 'array',
+          'items': {'type': 'string'},
+        }),
         equals('List<String>'),
       );
     });
@@ -74,15 +77,9 @@ void main() {
     test('maps binary field to MultipartFile only for request body', () {
       final mapper = TypeMapper({});
       // 请求体中的 binary 字段映射为 MultipartFile
-      expect(
-        mapper.mapType({'type': 'string', 'format': 'binary'}, forRequestBody: true),
-        equals('MultipartFile'),
-      );
+      expect(mapper.mapType({'type': 'string', 'format': 'binary'}, forRequestBody: true), equals('MultipartFile'));
       // 非请求体中的 binary 字段映射为 String
-      expect(
-        mapper.mapType({'type': 'string', 'format': 'binary'}),
-        equals('String'),
-      );
+      expect(mapper.mapType({'type': 'string', 'format': 'binary'}), equals('String'));
       // 普通 string 不受影响
       expect(mapper.mapType({'type': 'string'}), equals('String'));
     });

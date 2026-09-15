@@ -166,7 +166,7 @@ class TypesGenerator {
       final field = fields[i];
       final safeName = dartObjectProperties.contains(field.name) ? '${field.name}Filed' : field.name;
 
-      buf.writeln('  /// - ${field.description.isNotEmpty ? field.description : '未定义'}');
+      buf.writeln('  /// - ${field.description.isNotEmpty ? toSingleLine(field.description) : '未定义'}');
       buf.writeln("  @JsonKey(name: '${field.jsonName}')");
 
       if (field.isRequired) {
@@ -313,7 +313,7 @@ class TypesGenerator {
       final field = fields[i];
       final safeName = dartObjectProperties.contains(field.name) ? '${field.name}Filed' : field.name;
 
-      buf.writeln('  /// - ${field.description.isNotEmpty ? field.description : '未定义'}');
+      buf.writeln('  /// - ${field.description.isNotEmpty ? toSingleLine(field.description) : '未定义'}');
 
       if (field.isRequired) {
         buf.writeln('  late ${field.type} $safeName;');
@@ -336,10 +336,12 @@ class TypesGenerator {
 
   /// 生成 toFormData() 方法
   void _writeToFormDataMethod(StringBuffer buf, List<InlineFieldInfo> fields) {
-    final entries = fields.map((field) {
-      final safeName = dartObjectProperties.contains(field.name) ? '${field.name}Filed' : field.name;
-      return "'${field.jsonName}': $safeName";
-    }).join(', ');
+    final entries = fields
+        .map((field) {
+          final safeName = dartObjectProperties.contains(field.name) ? '${field.name}Filed' : field.name;
+          return "'${field.jsonName}': $safeName";
+        })
+        .join(', ');
     buf.writeln('  /// 转换为 FormData（用于 multipart/form-data 请求）');
     buf.writeln('  FormData toFormData() {');
     buf.writeln('    return FormData.fromMap({$entries});');

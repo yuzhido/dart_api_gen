@@ -66,9 +66,9 @@ String tagToGroupName(String area) {
   return area.toLowerCase();
 }
 
-/// Schema 名转 Dart 类名: DemoUserAddInput → DemoUserAddInputDto
+/// Schema 名转 Dart 类名: 统一追加 Dto 后缀（即使原名称已以 Dto 结尾也继续追加）
+/// 避免 AssetConfigRetirement 与 AssetConfigRetirementDto 这类 schema 生成同名类
 String schemaToClassName(String schemaName) {
-  if (schemaName.endsWith(dtoSuffix)) return schemaName;
   return '$schemaName$dtoSuffix';
 }
 

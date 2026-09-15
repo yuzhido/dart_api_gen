@@ -51,7 +51,7 @@ class ControllerGenerator {
     final responseRef = api.responseRef;
     String returnType = 'dynamic';
     if (responseRef != null) {
-      returnType = responseRef.endsWith('Dto') ? responseRef : '${responseRef}Dto';
+      returnType = ensureDtoSuffix(responseRef);
     }
 
     // 确定参数
@@ -118,7 +118,7 @@ class ControllerGenerator {
     }
 
     // 方法注释
-    final singleLineSummary = summary.split('\n').map((s) => s.trim()).where((s) => s.isNotEmpty).join(' ');
+    final singleLineSummary = toSingleLine(summary);
     final displayTitle = singleLineSummary.isNotEmpty ? singleLineSummary : tag;
     buf.writeln('  /// ### $displayTitle');
     buf.writeln('  /// - 请求路径: $path');
