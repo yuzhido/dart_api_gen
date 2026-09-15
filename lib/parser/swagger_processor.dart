@@ -391,6 +391,8 @@ class SwaggerProcessor {
         if (paramSchema.containsKey('format')) property['format'] = paramSchema['format'];
       }
 
+      // 保留显式可空标记，供 DTO 生成器判断字段类型。
+      if (paramSchema.containsKey('nullable')) property['nullable'] = paramSchema['nullable'];
       if (param.containsKey('description')) property['description'] = param['description'];
       if (param['required'] == true) property['required'] = true;
       property['in'] = 'query';

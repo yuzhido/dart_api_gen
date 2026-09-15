@@ -21,6 +21,7 @@ class InlineDtoInfo {
 class InlineFieldInfo {
   final String name;
   final String type;
+  /// 构造参数是否必传：由字段可空规则决定，不直接使用 Swagger required。
   final bool isRequired;
   final String description;
   final String jsonName;
@@ -226,7 +227,6 @@ class TypesGenerator {
 
     // 对象类型 → 生成 class
     final properties = schema['properties'] as Map<String, dynamic>? ?? {};
-    final required = (schema['required'] as List<dynamic>?)?.cast<String>() ?? [];
     final isMultipartBody = schema['x-multipart'] == true;
 
     final fields = properties.entries.map((e) {
@@ -236,7 +236,7 @@ class TypesGenerator {
       return InlineFieldInfo(
         name: dartName,
         type: typeMapper.mapType(propSchema, forRequestBody: isMultipartBody),
-        isRequired: required.contains(jsonName),
+        isRequired: !typeMapper.isNullable(propSchema, jsonName),
         description: propSchema['description'] as String? ?? '',
         jsonName: jsonName,
       );

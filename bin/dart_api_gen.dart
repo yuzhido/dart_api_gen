@@ -422,20 +422,34 @@ Future<void> main(List<String> arguments) async {
   // 9. 执行 build_runner 生成 .g.dart 文件
   if (config.runBuildRunner) {
     print('');
-    print('🔧 正在执行 build_runner 生成 .g.dart 文件...');
     // build_runner 必须在项目根目录（pubspec.yaml 所在目录）运行，否则会在输出目录生成 .dart_tool
     final projectRoot = foundConfigPath != null ? p.dirname(p.absolute(foundConfigPath)) : Directory.current.path;
-    final buildResult = await Process.run('dart', ['run', 'build_runner', 'build', '--delete-conflicting-outputs'], workingDirectory: projectRoot, runInShell: true);
+
+    print('🧹 正在执行 build_runner clean 清理构建缓存...');
+    final cleanResult = await Process.run('dart', ['run', 'build_runner', 'clean'], workingDirectory: projectRoot, runInShell: true);
+    if (cleanResult.exitCode != 0) {
+      print('   ❌ build_runner clean 执行失败 (exitCode: ${cleanResult.exitCode})');
+      if (cleanResult.stdout.toString().isNotEmpty) print(cleanResult.stdout);
+      if (cleanResult.stderr.toString().isNotEmpty) print(cleanResult.stderr);
+      exitCode = cleanResult.exitCode;
+      return;
+    }
+    print('   ✅ build_runner clean 执行成功');
+
+    print('🔧 正在执行 build_runner build 生成 .g.dart 文件...');
+    final buildResult = await Process.run('dart', ['run', 'build_runner', 'build'], workingDirectory: projectRoot, runInShell: true);
     if (buildResult.exitCode == 0) {
       print('   ✅ build_runner 执行成功');
     } else {
       print('   ❌ build_runner 执行失败 (exitCode: ${buildResult.exitCode})');
       if (buildResult.stdout.toString().isNotEmpty) print(buildResult.stdout);
       if (buildResult.stderr.toString().isNotEmpty) print(buildResult.stderr);
+      exitCode = buildResult.exitCode;
     }
   } else {
     print('💡 提示: 请在目标项目中运行 build_runner 生成 .g.dart 文件');
     print('   cd <项目根目录>');
-    print('   dart run build_runner build --delete-conflicting-outputs');
+    print('   dart run build_runner clean');
+    print('   dart run build_runner build');
   }
 }

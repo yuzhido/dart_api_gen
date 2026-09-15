@@ -1,6 +1,6 @@
 name: dart_api_gen
 description: 'A code generation tool that generates Dart API code from Swagger/OpenAPI JSON.'
-version: 1.1.0
+version: 1.1.1
 repository: https://github.com/yuzhido/dart_api_gen
 issue_tracker: https://github.com/yuzhido/dart_api_gen/issues
 

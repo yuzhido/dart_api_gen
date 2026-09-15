@@ -1,6 +1,7 @@
 /// Swagger type → Dart type 映射器
 library;
 
+import '../constants/generator_constants.dart';
 import 'ref_utils.dart';
 
 class TypeMapper {
@@ -81,13 +82,10 @@ class TypeMapper {
     }
   }
 
-  /// 判断字段是否 nullable
-  bool isNullable(Map<String, dynamic> propSchema, String fieldName, List<String>? required) {
-    // 如果 explicitly nullable
-    if (propSchema['nullable'] == true) return true;
-    // 如果不在 required 列表中
-    if (required != null && !required.contains(fieldName)) return true;
-    return false;
+  /// 审计字段强制可空，其他字段仅在显式声明 nullable: true 时可空。
+  /// [required] 仅为兼容原有调用保留，不再参与可空判断。
+  bool isNullable(Map<String, dynamic> propSchema, String fieldName, [List<String>? required]) {
+    return alwaysNullableFields.contains(fieldName) || propSchema['nullable'] == true;
   }
 
   /// 判断引用的 schema 是否为枚举

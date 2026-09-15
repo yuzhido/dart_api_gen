@@ -7,6 +7,19 @@ const dtoSuffix = 'Dto';
 /// Enum 后缀
 const enumSuffix = 'Enum';
 
+/// 强制可空的审计字段，按原始 JSON 属性名匹配。
+const alwaysNullableFields = <String>[
+  'createdTime',
+  'createdUserId',
+  'createdUserName',
+  'deleter',
+  'deleterId',
+  'isDeleted',
+  'modifiedTime',
+  'modifiedUserId',
+  'modifiedUserName',
+];
+
 /// 枚举兜底值
 const customUnknownValue = -9999;
 const customUnknownName = 'customUnknown';
