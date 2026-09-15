@@ -119,7 +119,7 @@ class SwaggerProcessor {
           final checkContent = processedRequestBody['content'] as Map<String, dynamic>?;
           final checkSchema = checkContent != null ? (selectMediaType(checkContent)?['schema'] as Map<String, dynamic>?) : null;
           if (checkSchema != null && !checkSchema.containsKey('\$ref')) {
-            final schemaName = '${_generateInlineSchemaName(apiPath)}${needsSuffix ? 'Body' : ''}';
+            final schemaName = _resolveInlineSchemaName(apiPath, needsSuffix ? 'Body' : null, 'Body', typesInfo);
             typesInfo[schemaName] = {
               ...checkSchema,
               'description': rawRb?['description'] as String? ?? 'Generated from $apiPath',
@@ -364,7 +364,7 @@ class SwaggerProcessor {
     Map<String, Set<String>> typeUsageMap,
     String? suffix,
   ) {
-    final schemaName = '${_generateInlineSchemaName(apiPath)}${suffix ?? ''}';
+    final schemaName = _resolveInlineSchemaName(apiPath, suffix, 'Query', typesInfo);
 
     // 构建 properties
     final properties = <String, dynamic>{};
@@ -476,7 +476,7 @@ class SwaggerProcessor {
     }
 
     // 内联 schema：提升到 typesInfo
-    final schemaName = '${_generateInlineSchemaName(apiPath)}${suffix ?? ''}';
+    final schemaName = _resolveInlineSchemaName(apiPath, suffix, 'Body', typesInfo);
 
     if (schema != null) {
       typesInfo[schemaName] = {
@@ -720,6 +720,26 @@ class SwaggerProcessor {
               .join('');
         })
         .join('');
+  }
+
+  /// 计算内联请求参数 schema 的安全名字，避免覆盖 typesInfo 中已有类型
+  ///
+  /// 内联 DTO 名由接口路径末两段生成（见 [_generateInlineSchemaName]），可能与后端
+  /// 真实 schema 同名（如 /api/basic/reconciliation/detail → ReconciliationDetail）。
+  /// 若直接写入 typesInfo 会覆盖真实响应模型，导致生成的 DTO 丢失全部字段。
+  /// 因此当候选名已被占用时，追加类型后缀 [kindSuffix]（Query/Body）区分；仍冲突则
+  /// 追加数字序号，直到得到未被占用的名字。
+  String _resolveInlineSchemaName(String apiPath, String? suffix, String kindSuffix, Map<String, dynamic> typesInfo) {
+    final base = _generateInlineSchemaName(apiPath);
+    final candidate = '$base${suffix ?? ''}';
+    if (!typesInfo.containsKey(candidate)) return candidate;
+    var resolved = '$base$kindSuffix';
+    var i = 2;
+    while (typesInfo.containsKey(resolved)) {
+      resolved = '$base$kindSuffix$i';
+      i++;
+    }
+    return resolved;
   }
 
   /// 判断 schema 是否为简单类型（非对象、非数组、无 properties、无 $ref）

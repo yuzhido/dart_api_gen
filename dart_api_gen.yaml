@@ -30,7 +30,7 @@ source:
   # url: "http://127.0.0.1:2387/swagger/all/swagger.json"
 
   # 本地文件路径（相对于运行目录或绝对路径）
-  file: './example/swagger.json'
+  file: './index.json'
 
   # 多环境 URL 配置（可选）
   # 键只能是 local / dev / testing / production，值为对应环境的 Swagger URL

@@ -55,6 +55,11 @@ class EnumGenerator {
 
     // 解析枚举值描述
     final valueMap = parseEnumDescription(description);
+    // 名称 → info 映射（小写），用于字符串枚举按名称查找真实数值
+    final nameMap = <String, EnumValueInfo>{};
+    for (final info in valueMap.values) {
+      nameMap[info.name.toLowerCase()] = info;
+    }
 
     // 注释
     if (description.isNotEmpty) {
@@ -65,12 +70,20 @@ class EnumGenerator {
 
     // 生成每个枚举值
     for (var i = 0; i < enumValues.length; i++) {
-      final value = _resolveEnumValue(enumValues[i], i);
+      final rawValue = enumValues[i];
+      // 字符串枚举先按名称匹配，获取 description 中定义的真实数值
+      EnumValueInfo? nameMatch;
+      if (rawValue is String) {
+        nameMatch = nameMap[rawValue.toLowerCase()];
+      }
+      final value = nameMatch?.value ?? _resolveEnumValue(rawValue, i);
       final info = valueMap[value];
-      // 使用 camelCase (首字母小写，其余不变)，和 TS 版本一致
-      final rawName = info != null ? (info.name[0].toLowerCase() + info.name.substring(1)) : 'value$value';
+      // 名称优先使用枚举值字符串本身保持原始大小写风格
+      final rawName = nameMatch != null
+          ? (nameMatch.name[0].toLowerCase() + nameMatch.name.substring(1))
+          : (info != null ? (info.name[0].toLowerCase() + info.name.substring(1)) : 'value$value');
       final name = safeEnumName(rawName);
-      final text = info?.text ?? '$value';
+      final text = info?.text ?? nameMatch?.text ?? '$value';
       final colorIndex = i % enumColors.length;
       final color = enumColors[colorIndex].$1;
       final bgColor = enumColors[colorIndex].$2;
@@ -110,9 +123,16 @@ class EnumGenerator {
     buf.writeln('  static List<$className> list() {');
     final names = <String>[];
     for (var i = 0; i < enumValues.length; i++) {
-      final v = _resolveEnumValue(enumValues[i], i);
+      final rawValue = enumValues[i];
+      EnumValueInfo? nameMatch;
+      if (rawValue is String) {
+        nameMatch = nameMap[rawValue.toLowerCase()];
+      }
+      final v = nameMatch?.value ?? _resolveEnumValue(rawValue, i);
       final info = valueMap[v];
-      final rawName = info != null ? (info.name[0].toLowerCase() + info.name.substring(1)) : 'value$v';
+      final rawName = nameMatch != null
+          ? (nameMatch.name[0].toLowerCase() + nameMatch.name.substring(1))
+          : (info != null ? (info.name[0].toLowerCase() + info.name.substring(1)) : 'value$v');
       names.add(safeEnumName(rawName));
     }
     buf.writeln('    return [${names.map((n) => '$className.$n').join(', ')}];');
