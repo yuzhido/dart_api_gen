@@ -1,6 +1,7 @@
 /// 数据模型文件生成器
 library;
 
+import '../constants/generator_constants.dart';
 import '../utils/naming.dart';
 import '../utils/type_mapper.dart';
 import '../utils/ref_utils.dart';
@@ -21,7 +22,7 @@ class InlineDtoInfo {
 class InlineFieldInfo {
   final String name;
   final String type;
-  /// 构造参数是否必传：由字段可空规则决定，不直接使用 Swagger required。
+  /// 是否位于 Swagger required 中（已排除强制可空的审计字段）。
   final bool isRequired;
   final String description;
   final String jsonName;
@@ -227,6 +228,7 @@ class TypesGenerator {
 
     // 对象类型 → 生成 class
     final properties = schema['properties'] as Map<String, dynamic>? ?? {};
+    final required = ((schema['required'] as List<dynamic>?)?.cast<String>() ?? []).where((name) => !alwaysNullableFields.contains(name)).toSet();
     final isMultipartBody = schema['x-multipart'] == true;
 
     final fields = properties.entries.map((e) {
@@ -236,7 +238,9 @@ class TypesGenerator {
       return InlineFieldInfo(
         name: dartName,
         type: typeMapper.mapType(propSchema, forRequestBody: isMultipartBody),
-        isRequired: !typeMapper.isNullable(propSchema, jsonName),
+        // required 表示字段必须存在；nullable: true 表示即使存在也允许为 null。
+        // 审计字段已从 required 集合排除，因此按可空字段处理。
+        isRequired: required.contains(jsonName) && propSchema['nullable'] != true,
         description: propSchema['description'] as String? ?? '',
         jsonName: jsonName,
       );
